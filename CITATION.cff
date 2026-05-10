@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+title: "{framework}^chi: Adaptive Cascade for Biomedical QA"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - name: "{framework} authors"
+repository-code: "https://github.com/coco11563/XCompass_Chi"
+license: Apache-2.0
+keywords:
+  - biomedical
+  - question-answering
+  - retrieval-augmented-generation
+  - agent
+  - cascade
+references:
+  - type: software
+    title: "{framework}: Biomedical QA Evaluation Harness"
+    url: "https://github.com/coco11563/XCompass_Eval_Framework"
+  - type: dataset
+    title: "GeneKnowledgeEval"
+    url: "https://huggingface.co/datasets/Shaow/GeneKnowledgeEval"

@@ -1,0 +1,94 @@
+[build-system]
+requires      = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name            = "framework-chi"
+version         = "0.1.0"
+description     = "{framework}^χ headline method (v14-cascade-dual-rerank-grounded). Plugs into framework-eval as a registered QA client."
+readme          = "README.md"
+requires-python = ">=3.10,<3.13"
+license         = { text = "Apache-2.0" }
+authors         = [{ name = "{framework} authors" }]
+keywords        = [
+  "biomedical", "question-answering", "rag", "agent",
+  "retrieval-augmented-generation", "cascade",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "framework-eval>=0.1.0,<1",
+  "httpx>=0.27,<1",
+  "qdrant-client>=1.9,<2",
+  "psycopg[binary]>=3.1,<4",
+  "numpy>=1.24,<3",
+  "pydantic>=2.6,<3",
+  "tomli>=2.0; python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9",
+  "pytest-asyncio>=0.23,<1",
+  "ruff>=0.5,<1",
+  "mypy>=1.10,<2",
+  "pre-commit>=3.7,<5",
+  "build>=1.2,<2",
+]
+
+[project.scripts]
+framework-chi = "framework_chi.cli:main"
+
+[project.entry-points."framework_eval.methods"]
+v14-cascade-dual-rerank-grounded = "framework_chi.cascade.client:V14CascadeClient"
+
+[project.urls]
+Homepage             = "https://github.com/coco11563/XCompass_Chi"
+Repository           = "https://github.com/coco11563/XCompass_Chi"
+Issues               = "https://github.com/coco11563/XCompass_Chi/issues"
+EvaluationFramework  = "https://github.com/coco11563/XCompass_Eval_Framework"
+Dataset              = "https://huggingface.co/datasets/Shaow/GeneKnowledgeEval"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/framework_chi"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/framework_chi", "tests", "docs", "scripts", "golden",
+  "MANIFEST.toml", "verify.py", "README.md", "LICENSE", "CHANGELOG.md",
+  "CITATION.cff", "CONTRIBUTING.md",
+]
+
+[tool.ruff]
+line-length    = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "PL", "RUF"]
+ignore = ["PLR0913", "PLR2004"]
+
+[tool.mypy]
+python_version       = "3.10"
+strict               = true
+ignore_missing_imports = true
+files                = ["src/framework_chi"]
+
+[tool.pytest.ini_options]
+testpaths       = ["tests"]
+addopts         = "-ra --strict-markers"
+markers = [
+  "live: tests that require user-provided inference infrastructure",
+]
+
+[tool.pytest_asyncio]
+asyncio_mode = "auto"

@@ -1,0 +1,80 @@
+# XCompass_Chi — headline-method manifest
+#
+# This package implements ``{framework}^χ`` — the headline-row method
+# (id ``v14-cascade-dual-rerank-grounded``) reported in the {framework}
+# paper. It is registered as a plugin under
+# ``framework_eval.methods`` so the eval harness in
+# ``coco11563/XCompass_Eval_Framework`` can score it directly.
+#
+# The data + scoring + verify-gate contract lives in the eval-framework
+# manifest; this manifest pins only what is owned here:
+#   * the framework-eval contract version we satisfy,
+#   * the cached-prompt smoke set used by ``verify.py`` (offline mode),
+#   * the live tolerance band reported in the paper.
+#
+# Replace ``{model}`` with your inference backend identity when reading
+# the docs that reference this manifest.
+
+schema_version = "1"
+manifest_id    = "framework-chi-v14-cdrg-2026-04-28"
+created_utc    = "2026-04-28T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Framework contract
+# ---------------------------------------------------------------------------
+[framework_eval]
+required_version_range = ">=0.1.0,<1"
+plugin_entry_point     = "v14-cascade-dual-rerank-grounded"
+
+# ---------------------------------------------------------------------------
+# Headline numbers reported by the paper (eval-framework canonical run)
+# ---------------------------------------------------------------------------
+[headline]
+method_id              = "v14-cascade-dual-rerank-grounded"
+total_items            = 19302
+binary_accuracy        = 0.766035
+continuous_mean        = 0.691446
+
+# ---------------------------------------------------------------------------
+# Live re-run tolerance bands
+# ---------------------------------------------------------------------------
+# When ``verify.py --live`` re-runs the headline method end-to-end against
+# user-provided infrastructure, results vary with backend stochasticity.
+# These bounds match ``framework-eval``'s [verify.live] table.
+[verify.live]
+total_items              = 19302
+accuracy_tolerance_pp    = 2.5
+max_per_item_flip_rate   = 0.05
+slice_binomial_se_check  = true
+
+# ---------------------------------------------------------------------------
+# Offline smoke set
+# ---------------------------------------------------------------------------
+# A small (50 item) cached prompt+response set verifies that the cascade
+# pipeline glue is intact without requiring a live LLM stack. Hashes are
+# filled by ``scripts/build_cached_smoke.py`` once the real recordings
+# exist; until then verify.py treats ``TBD-*`` as a skip.
+[smoke_set]
+relative_path = "golden/cached_smoke.jsonl"
+items         = 50
+sha256        = "TBD-SET-ON-FIRST-RECORDING"
+
+# ---------------------------------------------------------------------------
+# Required user-provided infrastructure (see docs/infra.md)
+# ---------------------------------------------------------------------------
+[infra.services]
+llm                  = "OpenAI-compatible chat completion (e.g. {model} via vLLM)"
+embedding            = "OpenAI-compatible embedding (Qwen3-Embedding-0.6B or equivalent, 1024-dim)"
+reranker             = "OpenAI-compatible rerank endpoint (Qwen3-Reranker-8B or equivalent)"
+qdrant               = "Qdrant collection holding the PubMed corpus embeddings (1024-dim)"
+postgres             = "PubMed metadata + full-text mirrors (read-only)"
+disco_atlas          = "Optional single-cell expression atlas; required only with --enable-disco"
+
+[infra.env_vars]
+FRAMEWORK_LLM_URL          = "default http://127.0.0.1:8000/v1"
+FRAMEWORK_EMBED_URL        = "default http://127.0.0.1:8002/v1"
+FRAMEWORK_RERANK_URL       = "default http://127.0.0.1:8001/v1"
+FRAMEWORK_QDRANT_URL       = "default http://127.0.0.1:13335"
+FRAMEWORK_PUBMED_PG        = "default postgresql://localhost:5432/paper-graph-pubmed"
+FRAMEWORK_PAPERGRAPH_PG    = "default postgresql://localhost:5432/papergraph"
+FRAMEWORK_MODEL_NAME       = "default {model}"

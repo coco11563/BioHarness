@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Virtual envs
+.venv/
+venv/
+env/
+# `.python-version` is committed as a runtime hint; do not ignore it.
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local secrets
+.env
+.env.local
+secrets/
+
+# User runs (do not commit); offline cached smoke under golden/ is always tracked.
+runs/
+output/
+.cache/huggingface/
+
+# uv
+uv.lock-old
+.uv-cache/
