@@ -3,19 +3,24 @@
 Two operating modes:
 
   ``python verify.py``           offline (default): import the V14CascadeClient
-                                  through the plugin registry, run the cached
-                                  smoke set if present, and print a PASS / FAIL
-                                  summary. No network or GPU required.
+                                  through the plugin registry and validate the
+                                  shipped cached smoke set against MANIFEST.toml.
+                                  No network or GPU required.
 
-  ``python verify.py --live``    live: re-runs the headline method end-to-end
-                                  against user-provided infrastructure (see
-                                  docs/infra.md) and applies the binomial-SE
-                                  tolerances under [verify.live] in
-                                  MANIFEST.toml.
+  ``python verify.py --live``    live: runs a single end-to-end smoke item
+                                  against the user-provided infrastructure
+                                  (see docs/infra.md) and reports whether the
+                                  pipeline glue is wired correctly. Producing
+                                  the full 19,302-item headline numbers is not
+                                  done here: drive that through
+                                  ``framework-eval run --method
+                                  v14-cascade-dual-rerank-grounded ...`` and
+                                  compare against the [verify.live] tolerance
+                                  band in MANIFEST.toml.
 
 Exit codes:
     0  verification passed
-    1  hash drift, smoke failure, or live tolerance violation
+    1  hash drift, smoke failure, or live smoke item failure
     2  CLI / configuration error
 """
 

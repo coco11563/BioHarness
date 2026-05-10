@@ -14,13 +14,12 @@ Pipeline shape (matches the paper):
 Each stage is a small private method so unit tests can exercise it in
 isolation. The class implements ``framework_eval.plugins.QAClient``.
 
-The implementation here is deliberately a faithful skeleton: every stage
-is exposed as a hook that can be subclassed or monkey-patched, and the
-default deterministic-only paths return reasonable fallbacks if the
-backing service is unavailable. To reach the published headline numbers
-on the full 19,302-item benchmark you must connect a live LLM stack
-(see ``docs/infra.md``); cached-smoke offline mode covers a 50-item
-slice for CI.
+Every stage is a stable extension point: subclass ``V14CascadeClient`` and
+override ``_retrieve``, ``_fast_path``, ``_agent``, ``_rejudge``, or
+``_answer_is_grounded`` to plug in a heavier or differently-tuned
+implementation while keeping the cascade routing intact. To reach the
+published headline numbers on the full 19,302-item benchmark you must
+connect a live LLM stack (see ``docs/infra.md``).
 """
 
 from __future__ import annotations
@@ -103,6 +102,7 @@ class V14CascadeClient:
 
         should_escalate = (
             fast_path.logprob < self.options.cascade_threshold
+            or not fast_path.answer            # empty extracted answer always escalates
             or (self.options.enable_grounded_gate and not fast_path.grounded)
         )
 
@@ -161,9 +161,18 @@ class V14CascadeClient:
                 self._rerank_client(), item.question, passages,
                 top_k=self.options.rerank_top_k,
             )
+            # Reorder by rerank score (descending) then keep the top-K used
+            # for the constrained-gen prompt.
+            order = sorted(
+                range(len(passages)), key=lambda i: -scores[i] if i < len(scores) else 0,
+            )
+            ranked = [(passages[i], scores[i] if i < len(scores) else 0.0) for i in order]
+            ranked = ranked[: self.options.rerank_top_k]
+            passages = [p for p, _ in ranked]
+            scores = [s for _, s in ranked]
         else:
-            scores = [1.0] * len(passages[: self.options.rerank_top_k])
             passages = passages[: self.options.rerank_top_k]
+            scores = [1.0] * len(passages)
         return RetrievalContext(passages=passages, rerank_scores=scores)
 
     async def _fast_path(self, item: Item, ctx: RetrievalContext) -> FastPathOutcome:
@@ -177,7 +186,7 @@ class V14CascadeClient:
             passages=ctx.passages,
         )
         normalised = extract_answer(text, item.question_type, item.options, mode="strict")
-        grounded = self._answer_is_grounded(normalised, ctx) if normalised else False
+        grounded = self._answer_is_grounded(normalised, ctx, item) if normalised else False
         return FastPathOutcome(
             answer=normalised, response_text=text,
             logprob=logprob, grounded=grounded,
@@ -216,14 +225,23 @@ class V14CascadeClient:
     # Grounded gate
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _answer_is_grounded(answer: str, ctx: RetrievalContext) -> bool:
+    def _answer_is_grounded(
+        self, answer: str, ctx: RetrievalContext, item: Item | None = None,
+    ) -> bool:
+        """Substring-grounded check.
+
+        For MCQ answers (single capital letter) substring-matching against
+        the passage text is meaningless, so the grounded gate matches
+        against the *selected option's text* when options are present.
+        """
         if not answer or not ctx.passages:
             return False
         needle = answer.lower()
+        if item and item.options and len(answer) == 1 and answer.upper() in item.options:
+            needle = item.options[answer.upper()].lower()
         for p in ctx.passages:
             text = (p.get("text") or "").lower()
-            if needle in text:
+            if needle and needle in text:
                 return True
         return False
 

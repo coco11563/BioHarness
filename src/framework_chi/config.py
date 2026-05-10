@@ -64,10 +64,15 @@ class ServiceConfig:
 
 @dataclass(frozen=True)
 class CascadeOptions:
-    """Pipeline knobs exposed as CLI ablation flags."""
+    """Pipeline knobs exposed as CLI ablation flags.
+
+    Defaults match the headline row ``v14-cascade-dual-rerank-grounded``;
+    the ``-grounded`` suffix in the row name corresponds to
+    ``enable_grounded_gate=True``.
+    """
 
     cascade_threshold:    float = 0.7
-    enable_grounded_gate: bool  = False
+    enable_grounded_gate: bool  = True
     enable_dual_rerank:   bool  = True
     enable_disco:         bool  = False
     max_agent_iterations: int   = 8

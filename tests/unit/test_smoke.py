@@ -57,7 +57,8 @@ def test_cli_ablations_emits_json() -> None:
     assert rc == 0
     payload = json.loads(buf.getvalue())
     assert payload["cascade_threshold"] == 0.7
-    assert payload["enable_grounded_gate"] is False
+    # `-grounded` in the headline method id corresponds to this default.
+    assert payload["enable_grounded_gate"] is True
     assert payload["enable_dual_rerank"] is True
 
 

@@ -1,12 +1,11 @@
 """REPL-based escalation agent.
 
-The reference implementation in this skeleton is a *single-shot* tool-aware
-LLM call: it prompts the LLM to think + answer with up to
-``options.max_agent_iterations`` reasoning rounds. The full
-``BiomedicalRLMPipeline`` from the paper (Python REPL execution, multi-tool
-dispatch, self-revision) is out of scope for this open-source release; the
-hook signature here is identical so a downstream user can subclass
-``V14CascadeClient`` and swap in the heavier agent.
+The default escalation in this release is a single-call, longer-budget LLM
+prompt that reasons over the assembled context. The full multi-iteration
+REPL agent with Python execution and multi-tool dispatch is exposed as a
+hook: subclass :class:`V14CascadeClient` and override
+:meth:`V14CascadeClient._agent` to plug in a heavier implementation. The
+hook signature is stable.
 """
 
 from __future__ import annotations
@@ -79,6 +78,9 @@ async def run_agent(
         {"role": "user", "content": user_msg},
     ]
 
+    # The default escalation makes a single iteration; ``max_agent_iterations``
+    # is the upper bound that downstream subclasses may use, and it is
+    # surfaced in the AgentOutcome for telemetry.
     try:
         text, _ = await llm.chat_with_logprob(
             model=services.model_name,
