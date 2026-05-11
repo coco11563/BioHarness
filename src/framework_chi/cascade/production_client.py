@@ -85,20 +85,23 @@ class ProductionV14CascadeClient:
 
     async def generate(self, item: Item) -> Prediction:
         await self._ensure_entered()
+        # Match the upstream runner.py contract: pass context=None unless
+        # the use-golden-context flag is set. The headline cascade run does
+        # NOT use the dataset's gold ideal_answer passages; the cascade
+        # does its own dense retrieval inside.
         try:
             resp = await self._client.generate(
                 item.question,
                 item.question_type,
-                context=item.context,
+                context=None,
                 options=item.options,
                 item_key=(item.dataset, item.id),
             )
         except TypeError:
-            # Older signature without item_key.
             resp = await self._client.generate(
                 item.question,
                 item.question_type,
-                context=item.context,
+                context=None,
                 options=item.options,
             )
 
