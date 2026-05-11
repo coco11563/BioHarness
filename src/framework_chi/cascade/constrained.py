@@ -57,6 +57,11 @@ SYSTEM_PROMPTS: dict[str, str] = {
         "Output a comma-separated list of biomedical entities.\n"
         "No brackets, no bullets, no numbering, no explanation.\n"
         "Each item should be 1-5 words.\n"
+        "If the entity has both a symbol and a full name (e.g. 'EGF' / "
+        "'epidermal growth factor', or 'DVL-1' / 'DVL1' / 'dishevelled-1'), "
+        "include BOTH forms as separate comma-separated items so synonym "
+        "matching can match either form. Use hyphens between letters and "
+        "numbers where standard (DVL-1, NOTCH-1).\n"
         "If no items are supported by evidence, output: none"
     ),
     "summary": (

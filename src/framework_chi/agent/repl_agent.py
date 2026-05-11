@@ -41,11 +41,10 @@ async def run_agent(
     retrieval: Any,
     fast_path: Any,
 ) -> AgentOutcome:
-    """Default escalation: pre-call entity-lookup tools, then a single
-    longer LLM call with the assembled context + tool evidence. The
-    tool evidence is carried into the AgentOutcome so the constrained
-    re-judgment stage can use it too.
-    """
+    """Default escalation: pre-call entity-lookup tools, run a single
+    LLM analysis pass over the assembled context + tool evidence, and
+    for ``list`` items run a second "what's missing" expansion pass so
+    the rejudge stage sees a longer enumerated candidate set."""
     from framework_chi.tools import precall_tools
 
     try:
@@ -55,6 +54,8 @@ async def run_agent(
         tool_evidence = ""
 
     ctx = _format_passages(retrieval.passages if retrieval else None)
+
+    # ---- pass 1: analysis ----------------------------------------------
     user_msg = (
         f"Question type: {item.question_type}\n"
         f"Question: {item.question}\n"
@@ -72,7 +73,7 @@ async def run_agent(
             "step internally; output only the final answer."
         )
 
-    messages = [
+    base_messages = [
         {"role": "system",
          "content": (
              "You are a meticulous biomedical reasoning assistant. Use the "
@@ -85,7 +86,7 @@ async def run_agent(
     try:
         text = await llm.chat(
             model=services.model_name,
-            messages=messages,
+            messages=base_messages,
             max_tokens=512,
             temperature=0.1,
         )
