@@ -1,11 +1,11 @@
 """REPL-based escalation agent.
 
 The default escalation in this release is a single-call, longer-budget LLM
-prompt that reasons over the assembled context. The full multi-iteration
-REPL agent with Python execution and multi-tool dispatch is exposed as a
-hook: subclass :class:`V14CascadeClient` and override
-:meth:`V14CascadeClient._agent` to plug in a heavier implementation. The
-hook signature is stable.
+prompt that reasons over the assembled context + any pre-fetched tool
+evidence (gene/UniProt/GO lookups). The full multi-iteration REPL agent
+with Python execution is exposed as a hook: subclass
+:class:`V14CascadeClient` and override :meth:`V14CascadeClient._agent`
+to plug in a heavier implementation. The hook signature is stable.
 """
 
 from __future__ import annotations
@@ -41,16 +41,18 @@ async def run_agent(
     retrieval: Any,
     fast_path: Any,
 ) -> AgentOutcome:
-    """Default escalation: a longer LLM call with the assembled context.
-
-    Returns the constrained-rejudge candidate together with iteration
-    count and tool-call log. When the LLM call fails, the agent returns
-    the fast-path answer so the cascade still produces output.
+    """Default escalation: pre-call entity-lookup tools, then a single
+    longer LLM call with the assembled context + tool evidence. The
+    tool evidence is carried into the AgentOutcome so the constrained
+    re-judgment stage can use it too.
     """
-    prompt_suffix = (
-        "\n\nYou may reference any of the passages above. Reason step by "
-        "step internally; output only the final answer."
-    )
+    from framework_chi.tools import precall_tools
+
+    try:
+        tool_evidence = await precall_tools(item.question, item.question_type)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("precall_tools failed: %s", exc)
+        tool_evidence = ""
 
     ctx = _format_passages(retrieval.passages if retrieval else None)
     user_msg = (
@@ -61,28 +63,31 @@ async def run_agent(
         user_msg += "Options:\n" + "\n".join(
             f"  {k}. {v}" for k, v in item.options.items()
         ) + "\n"
+    if tool_evidence:
+        user_msg += f"\n{tool_evidence}\n"
     if ctx:
-        user_msg += f"\nRetrieved context:\n{ctx}{prompt_suffix}"
+        user_msg += (
+            f"\nRetrieved context:\n{ctx}\n\n"
+            "You may reference any of the passages above. Reason step by "
+            "step internally; output only the final answer."
+        )
 
     messages = [
         {"role": "system",
          "content": (
              "You are a meticulous biomedical reasoning assistant. Use the "
-             "retrieved passages and your domain knowledge to answer "
-             "carefully."
+             "tool results (when present) as authoritative; use the "
+             "retrieved passages as supporting context."
          )},
         {"role": "user", "content": user_msg},
     ]
 
-    # The default escalation makes a single iteration; ``max_agent_iterations``
-    # is the upper bound that downstream subclasses may use, and it is
-    # surfaced in the AgentOutcome for telemetry.
     try:
-        text, _ = await llm.chat_with_logprob(
+        text = await llm.chat(
             model=services.model_name,
             messages=messages,
             max_tokens=512,
-            temperature=0.0,
+            temperature=0.1,
         )
     except Exception as exc:  # noqa: BLE001
         LOGGER.warning("agent escalation failed: %s; using fast-path answer", exc)
@@ -91,11 +96,13 @@ async def run_agent(
             response_text=fast_path.response_text,
             iterations=0,
             tool_calls=[],
+            tool_evidence=tool_evidence,
         )
 
     return AgentOutcome(
-        answer=text.strip(),
-        response_text=text,
+        answer=(text or "").strip(),
+        response_text=text or "",
         iterations=1,
-        tool_calls=[],
+        tool_calls=["gene_resolver"] if tool_evidence else [],
+        tool_evidence=tool_evidence,
     )

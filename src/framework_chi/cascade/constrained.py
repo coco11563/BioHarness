@@ -239,12 +239,26 @@ async def rejudge(
     model_name: str,
     item: Item,
     agent_text: str,
+    tool_evidence: str = "",
+    retrieval: Any = None,
 ) -> str:
-    """Re-judge the agent's free-form answer through the constrained prompt."""
-    system, user = build_messages(
-        item,
-        passages=[{"text": f"Agent analysis:\n{agent_text}", "metadata": {}}],
-    )
+    """Re-judge the agent's free-form answer through the constrained prompt.
+
+    Sees three evidence sources at the same time so the rejudge LLM has
+    everything the agent had: the agent's draft, any pre-fetched tool
+    output (gene info, UniProt, etc.), and the original retrieved
+    passages.
+    """
+    rejudge_passages: list[dict[str, Any]] = [
+        {"text": f"Agent analysis:\n{agent_text}", "metadata": {}},
+    ]
+    if tool_evidence:
+        rejudge_passages.append(
+            {"text": tool_evidence, "metadata": {"title": "Tool Results"}}
+        )
+    if retrieval is not None and getattr(retrieval, "passages", None):
+        rejudge_passages.extend(retrieval.passages)
+    system, user = build_messages(item, passages=rejudge_passages)
     messages = [
         {"role": "system", "content": system},
         {"role": "user",   "content": user},

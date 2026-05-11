@@ -72,6 +72,7 @@ class AgentOutcome:
     response_text: str
     iterations: int
     tool_calls: list[str]
+    tool_evidence: str = ""
 
 
 # ----------------------------------------------------------------------
@@ -127,7 +128,7 @@ class V14CascadeClient:
             )
 
         agent = await self._agent(item, retrieval, fast_path)
-        rejudged = await self._rejudge(item, agent)
+        rejudged = await self._rejudge(item, agent, retrieval=retrieval)
         return Prediction(
             item_id=item.id,
             answer=rejudged,
@@ -283,7 +284,13 @@ class V14CascadeClient:
             fast_path=fast_path,
         )
 
-    async def _rejudge(self, item: Item, agent: AgentOutcome) -> str:
+    async def _rejudge(
+        self, item: Item, agent: AgentOutcome,
+        retrieval: RetrievalContext | None = None,
+    ) -> str:
+        """Constrained re-judgment that sees the agent's free-form answer,
+        the original retrieved evidence, AND any tool evidence collected
+        during escalation. Mirrors the upstream rejudge composition."""
         from framework_chi.cascade.constrained import extract_constrained_answer, rejudge
 
         text = await rejudge(
@@ -291,6 +298,8 @@ class V14CascadeClient:
             model_name=self.services.model_name,
             item=item,
             agent_text=agent.response_text or agent.answer,
+            tool_evidence=agent.tool_evidence,
+            retrieval=retrieval,
         )
         return extract_constrained_answer(text, item.question_type, item.options)
 
