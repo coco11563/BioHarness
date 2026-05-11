@@ -271,11 +271,30 @@ class V14CascadeClient:
     async def _agent(
         self, item: Item, ctx: RetrievalContext, fast_path: FastPathOutcome,
     ) -> AgentOutcome:
-        """REPL agent escalation hook. Default is a longer-budget LLM call
-        with the assembled context; subclass to wire a multi-iteration
-        REPL agent."""
+        """REPL agent escalation hook.
+
+        Resolution order:
+          1. If ``FRAMEWORK_PRODUCTION_SRC`` points at a working
+             PaperAsKnowledgeGraph-RAG tree, delegate to the full
+             production ``BiomedicalRLMPipeline`` (multi-iteration REPL +
+             tool dispatch). This is the "exactly aligned" path.
+          2. Otherwise fall back to the in-tree single-pass agent that
+             ships with this package.
+        """
+        from framework_chi.agent.production_adapter import (
+            production_agent_available,
+            run_production_agent,
+        )
         from framework_chi.agent.repl_agent import run_agent
 
+        if production_agent_available():
+            return await run_production_agent(
+                llm=self._llm_client(),
+                services=self.services,
+                item=item,
+                retrieval=ctx,
+                fast_path=fast_path,
+            )
         return await run_agent(
             llm=self._llm_client(),
             services=self.services,
