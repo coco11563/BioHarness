@@ -254,16 +254,38 @@ async def rejudge(
     output (gene info, UniProt, etc.), and the original retrieved
     passages.
     """
-    rejudge_passages: list[dict[str, Any]] = [
-        {"text": f"Agent analysis:\n{agent_text}", "metadata": {}},
-    ]
+    # Compose the rejudge context as a flat string (matches upstream
+    # cascade): "Agent analysis: ...\n\nOriginal evidence: ...".
+    # Avoids wrapping the agent's chain-of-thought as a fake PubMed
+    # passage, which would dilute the agent signal.
+    pieces: list[str] = [f"Agent analysis:\n{agent_text}"]
     if tool_evidence:
-        rejudge_passages.append(
-            {"text": tool_evidence, "metadata": {"title": "Tool Results"}}
-        )
+        pieces.append(tool_evidence)
     if retrieval is not None and getattr(retrieval, "passages", None):
-        rejudge_passages.extend(retrieval.passages)
-    system, user = build_messages(item, passages=rejudge_passages)
+        pmlines = ["PubMed Evidence:"]
+        for i, p in enumerate(retrieval.passages, 1):
+            txt = (p.get("text") or "").strip()
+            if not txt:
+                continue
+            meta = p.get("metadata") or {}
+            pmid = meta.get("pmid") or p.get("id") or "unknown"
+            title = (meta.get("title") or "").strip()
+            pmlines.append(f"[{i}] PMID {pmid}")
+            if title:
+                pmlines.append(f"Title: {title}")
+            pmlines.append(f"Abstract: {txt[:1500]}")
+            pmlines.append("")
+        if len(pmlines) > 1:
+            pieces.append("Original evidence:\n" + "\n".join(pmlines).strip())
+    rejudge_context = "\n\n".join(pieces)
+
+    qt = item.question_type if item.question_type in SYSTEM_PROMPTS else "factoid"
+    system = SYSTEM_PROMPTS[qt]
+    user = USER_PROMPTS[qt].format(
+        question=item.question,
+        context=rejudge_context[:8000],
+        options=_format_options(item.options),
+    )
     messages = [
         {"role": "system", "content": system},
         {"role": "user",   "content": user},
