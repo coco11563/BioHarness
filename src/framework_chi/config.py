@@ -2,7 +2,7 @@
 
 Every endpoint defaults to a localhost SSH-tunnel address that matches
 the layout described in ``docs/infra.md``. Override any of them via the
-documented environment variables before constructing a V14CascadeClient.
+documented environment variables before constructing a PipelineCascadeClient.
 
 This release ships a single, fixed best configuration of the cascade.
 The one user-facing knob is ``force_agent``: when True, every item

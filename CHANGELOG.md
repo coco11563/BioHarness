@@ -15,8 +15,8 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   scaffold).
 
 ### Notes
-- Plugs into framework-eval as the `v14-cascade-dual-rerank-grounded`
-  method via the `framework_eval.methods` entry point.
+- Plugs into framework-eval as the `pipeline` method via the
+  `framework_eval.methods` entry point.
 - Headline numbers (binary 0.766 / continuous 0.691 on 19,302 items)
   are reproduced byte-equal by the eval-framework's `python verify.py`
   using the shipped run snapshot; this repository is for **re-running**

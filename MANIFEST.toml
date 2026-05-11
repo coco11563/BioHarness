@@ -1,8 +1,8 @@
 # XCompass_Chi — headline-method manifest
 #
 # This package implements ``{framework}^χ`` — the headline-row method
-# (id ``v14-cascade-dual-rerank-grounded``) reported in the {framework}
-# paper. It is registered as a plugin under
+# (id ``pipeline``) reported in the {framework} paper.
+# It is registered as a plugin under
 # ``framework_eval.methods`` so the eval harness in
 # ``coco11563/XCompass_Eval_Framework`` can score it directly.
 #
@@ -16,7 +16,7 @@
 # the docs that reference this manifest.
 
 schema_version = "1"
-manifest_id    = "framework-chi-v14-cdrg-2026-04-28"
+manifest_id    = "framework-chi-pipeline-2026-04-28"
 created_utc    = "2026-04-28T00:00:00Z"
 
 # ---------------------------------------------------------------------------
@@ -24,13 +24,13 @@ created_utc    = "2026-04-28T00:00:00Z"
 # ---------------------------------------------------------------------------
 [framework_eval]
 required_version_range = ">=0.1.0,<1"
-plugin_entry_point     = "v14-cascade-dual-rerank-grounded"
+plugin_entry_point     = "pipeline"
 
 # ---------------------------------------------------------------------------
 # Headline numbers reported by the paper (eval-framework canonical run)
 # ---------------------------------------------------------------------------
 [headline]
-method_id              = "v14-cascade-dual-rerank-grounded"
+method_id              = "pipeline"
 total_items            = 19302
 binary_accuracy        = 0.766035
 continuous_mean        = 0.691446

@@ -1,8 +1,8 @@
 """framework-chi: doctor + config introspection.
 
 The actual scoring entry point is ``framework-eval run --method
-v14-cascade-dual-rerank-grounded ...``; this CLI exists for
-infrastructure self-checks and to print the resolved configuration.
+pipeline ...``; this CLI exists for infrastructure self-checks and
+to print the resolved configuration.
 """
 
 from __future__ import annotations

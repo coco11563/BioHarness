@@ -1,4 +1,4 @@
-"""V14CascadeClient: the {framework}^χ headline method.
+"""PipelineCascadeClient: the {framework}^χ headline method.
 
 Pipeline shape (single best-config configuration, no ablation flags):
 
@@ -18,7 +18,7 @@ every non-yesno item bypasses the fast path. yesno always takes the fast
 path even with ``force_agent`` because the agent introduces a documented
 'no' bias for yes/no questions.
 
-Every stage is a stable extension point: subclass ``V14CascadeClient`` and
+Every stage is a stable extension point: subclass ``PipelineCascadeClient`` and
 override ``_retrieve``, ``_fast_path``, ``_agent``, or ``_rejudge`` to plug
 in a heavier or differently-tuned implementation while keeping the cascade
 routing intact. To reach the published headline numbers on the full
@@ -80,11 +80,10 @@ class AgentOutcome:
 # ----------------------------------------------------------------------
 
 
-class V14CascadeClient:
-    """Headline {framework}^χ method registered as
-    ``v14-cascade-dual-rerank-grounded``."""
+class PipelineCascadeClient:
+    """Headline {framework}^χ method registered as ``pipeline``."""
 
-    name = "v14-cascade-dual-rerank-grounded"
+    name = "pipeline"
 
     def __init__(self, *, services: ServiceConfig | None = None) -> None:
         self.services = services or ServiceConfig.from_env()
@@ -393,8 +392,8 @@ class V14CascadeClient:
 # ----------------------------------------------------------------------
 
 
-class StubV14CascadeClient(V14CascadeClient):
-    """V14CascadeClient that returns a fixed answer.
+class StubPipelineCascadeClient(PipelineCascadeClient):
+    """PipelineCascadeClient that returns a fixed answer.
 
     Useful for CI runs that exercise the framework-eval → Chi integration
     without touching any live service.

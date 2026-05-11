@@ -28,7 +28,7 @@ constrained re-judgment) with the same prompts and the same per-type
 
 The default `_agent` hook in `cascade/client.py` is a single-shot LLM
 call; users who need the heavier agent should subclass
-`V14CascadeClient` and override that hook (see `docs/adapter.md`).
+`PipelineCascadeClient` and override that hook (see `docs/adapter.md`).
 
 ## Methodology
 
@@ -39,7 +39,7 @@ call; users who need the heavier agent should subclass
   any user would invoke.
 - The "Prod" column reads the per-item `correct` field from the run
   snapshot shipped in
-  `XCompass_Eval_Framework/output/v14-cascade-dual-rerank-grounded/`
+  `XCompass_Eval_Framework/output/pipeline/`
   (the paper-headline jsonl), filtered to the same item ids.
 - Each row reports `correct / n` exactly as the in-tree evaluator
   records it; question types map 1:1 to the binarisation table in

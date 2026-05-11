@@ -2,7 +2,7 @@
 
 `framework-chi` does not bundle the inference services it relies on.
 Every endpoint listed below must be reachable before
-`framework-eval run --method v14-cascade-dual-rerank-grounded ...`
+`framework-eval run --method pipeline ...`
 can produce headline-grade numbers. Run `framework-chi doctor` to
 self-check connectivity.
 

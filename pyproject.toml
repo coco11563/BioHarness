@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name            = "framework-chi"
 version         = "0.1.0"
-description     = "{framework}^χ headline method (v14-cascade-dual-rerank-grounded). Plugs into framework-eval as a registered QA client."
+description     = "{framework}^χ headline method (registered as the ``pipeline`` framework-eval method)."
 readme          = "README.md"
 requires-python = ">=3.10,<3.13"
 license         = { text = "Apache-2.0" }
@@ -51,10 +51,11 @@ framework-chi = "framework_chi.cli:main"
 
 [project.entry-points."framework_eval.methods"]
 # Default headline method: the in-tree cascade. Self-contained.
-v14-cascade-dual-rerank-grounded = "framework_chi.cascade.client:V14CascadeClient"
-# Full-delegation variant that wraps the in-house V14CascadeClient end-to-end
-# when FRAMEWORK_PRODUCTION_SRC points at the production source tree.
-v14-cascade-production         = "framework_chi.cascade.production_client:ProductionV14CascadeClient"
+pipeline             = "framework_chi.cascade.client:PipelineCascadeClient"
+# Full-delegation variant that wraps the upstream production cascade
+# end-to-end when FRAMEWORK_PRODUCTION_SRC points at the production
+# source tree.
+pipeline-production  = "framework_chi.cascade.production_client:ProductionPipelineCascadeClient"
 
 [project.urls]
 Homepage             = "https://github.com/coco11563/XCompass_Chi"

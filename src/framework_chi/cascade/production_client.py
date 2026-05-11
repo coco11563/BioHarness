@@ -1,17 +1,17 @@
 """Full-delegation cascade client.
 
 When the production source tree is available (``FRAMEWORK_PRODUCTION_SRC``
-or sibling-detection), this class wraps the *entire* in-house
-``V14CascadeClient`` from ``scripts/run_unified_benchmark.py`` and
-adapts it to the ``framework_eval.plugins.QAClient`` protocol. Every
-stage — retrieval, dual-rerank with the production-tuned HyDE+neg query
+or sibling-detection), this class wraps the *entire* in-house production
+cascade class from ``scripts/run_unified_benchmark.py`` and adapts it
+to the ``framework_eval.plugins.QAClient`` protocol. Every stage —
+retrieval, dual-rerank with the production-tuned rewrite+neg query
 pool, constrained generation with logprob confidence, grounded gate,
 agent escalation, and re-judgment — is the production code path, not a
 re-implementation.
 
-Use this client when "exactly aligned" matters. The simpler
-``V14CascadeClient`` in :mod:`framework_chi.cascade.client` remains the
-default for fully self-contained installs that do not have the
+Use this client when "exactly aligned" matters. The simpler in-tree
+``PipelineCascadeClient`` in :mod:`framework_chi.cascade.client` remains
+the default for fully self-contained installs that do not have the
 production source tree available.
 """
 
@@ -30,8 +30,12 @@ from framework_chi.agent.production_adapter import _production_src_root
 LOGGER = logging.getLogger(__name__)
 
 
-def _load_production_v14() -> type[Any]:
-    """Import ``V14CascadeClient`` from the production source tree."""
+def _load_production_pipeline_class() -> type[Any]:
+    """Import the production cascade class from the upstream source tree.
+
+    The class is referenced by its production name (``V14CascadeClient``)
+    only inside the upstream module — this repo does not redefine it.
+    """
     root = _production_src_root()
     if root is None:
         raise RuntimeError(
@@ -44,29 +48,29 @@ def _load_production_v14() -> type[Any]:
     # conventional importable module path; load it via importlib + spec.
     import importlib.util
     src_path = os.path.join(root, "scripts", "run_unified_benchmark.py")
-    spec = importlib.util.spec_from_file_location("paper_v14_runner", src_path)
+    spec = importlib.util.spec_from_file_location("pipeline_production_runner", src_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"could not load spec for {src_path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # Upstream class name is preserved as-is: this is the production identifier.
     return module.V14CascadeClient
 
 
-class ProductionV14CascadeClient:
-    """Thin wrapper around the production ``V14CascadeClient``.
+class ProductionPipelineCascadeClient:
+    """Thin wrapper around the production cascade class.
 
-    Constructed with the same arguments as the
-    ``v14-cascade-dual-rerank-grounded`` headline:
+    Constructed with the same arguments as the ``pipeline`` headline:
     ``confidence_threshold=0.7, dual_rerank=True, grounded_gate=True``.
 
     Implements the ``framework_eval.plugins.QAClient`` protocol so it can
     be registered as a method and driven from ``framework-eval run``.
     """
 
-    name = "v14-cascade-dual-rerank-grounded"
+    name = "pipeline"
 
     def __init__(self) -> None:
-        cls = _load_production_v14()
+        cls = _load_production_pipeline_class()
         self._client = cls(
             top_k=20,
             confidence_threshold=0.7,

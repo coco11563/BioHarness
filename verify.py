@@ -2,10 +2,11 @@
 
 Two operating modes:
 
-  ``python verify.py``           offline (default): import the V14CascadeClient
-                                  through the plugin registry and validate the
-                                  shipped cached smoke set against MANIFEST.toml.
-                                  No network or GPU required.
+  ``python verify.py``           offline (default): import the
+                                  PipelineCascadeClient through the plugin
+                                  registry and validate the shipped cached
+                                  smoke set against MANIFEST.toml. No network
+                                  or GPU required.
 
   ``python verify.py --live``    live: runs a single end-to-end smoke item
                                   against the user-provided infrastructure
@@ -13,10 +14,9 @@ Two operating modes:
                                   pipeline glue is wired correctly. Producing
                                   the full 19,302-item headline numbers is not
                                   done here: drive that through
-                                  ``framework-eval run --method
-                                  v14-cascade-dual-rerank-grounded ...`` and
-                                  compare against the [verify.live] tolerance
-                                  band in MANIFEST.toml.
+                                  ``framework-eval run --method pipeline ...``
+                                  and compare against the [verify.live]
+                                  tolerance band in MANIFEST.toml.
 
 Exit codes:
     0  verification passed
@@ -75,8 +75,8 @@ def _check_plugin_resolves(manifest: dict) -> str | None:
         cls = load_method(entry_name)
     except Exception as exc:  # noqa: BLE001
         return f"entry point {entry_name!r} failed to import: {exc}"
-    if cls.__name__ != "V14CascadeClient":
-        return f"entry point {entry_name!r} resolved to {cls.__name__}, expected V14CascadeClient"
+    if cls.__name__ != "PipelineCascadeClient":
+        return f"entry point {entry_name!r} resolved to {cls.__name__}, expected PipelineCascadeClient"
     return None
 
 
@@ -115,11 +115,11 @@ def _check_cached_smoke(manifest: dict) -> tuple[bool, str]:
 async def _live_smoke(manifest: dict) -> tuple[bool, str]:
     """Construct the cascade client and run a single sanity item."""
     try:
-        from framework_chi.cascade.client import V14CascadeClient
+        from framework_chi.cascade.client import PipelineCascadeClient
     except ImportError as exc:
         return False, f"framework-chi not importable: {exc}"
 
-    client = V14CascadeClient()
+    client = PipelineCascadeClient()
     try:
         from framework_eval.eval.types import Item
 

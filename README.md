@@ -1,7 +1,7 @@
 # XCompass_Chi
 
 **The {framework}^χ headline method** —
-``v14-cascade-dual-rerank-grounded`` — packaged as a registered
+``pipeline`` — packaged as a registered
 ``framework_eval.methods`` plugin so the
 [XCompass_Eval_Framework](https://github.com/coco11563/XCompass_Eval_Framework)
 harness can score it on the
@@ -12,7 +12,7 @@ Headline reproduced by the {framework} paper:
 
 | Method | Items | Binary acc | Continuous mean |
 | --- | ---: | ---: | ---: |
-| **{framework}^χ** (`v14-cascade-dual-rerank-grounded`) | **19,302** | **0.766** | **0.691** |
+| **{framework}^χ** (`pipeline`) | **19,302** | **0.766** | **0.691** |
 
 > **Placeholders.** This release uses the literal tokens `{framework}` and
 > `{model}` wherever a paper-specific name would otherwise appear. Replace
@@ -85,13 +85,12 @@ service and prints which are reachable and which are not.
 
 ### 3. Score the benchmark
 
-`framework-chi` is registered as the
-``v14-cascade-dual-rerank-grounded`` plugin under
+`framework-chi` is registered as the ``pipeline`` plugin under
 ``framework_eval.methods``. Run it through the harness:
 
 ```bash
 framework-eval run \
-  --method v14-cascade-dual-rerank-grounded \
+  --method pipeline \
   --datasets bioasq scihorizon-gene geneturing medmcqa \
              medqa_us medqa_taiwan medqa_mainland pubmedqa_pqal_test \
   --output runs/chi/
@@ -151,7 +150,7 @@ XCompass_Chi/
 ├── pyproject.toml
 ├── verify.py                    # offline cached smoke + --live re-run
 ├── src/framework_chi/
-│   ├── cascade/                 # V14CascadeClient (entry point)
+│   ├── cascade/                 # PipelineCascadeClient (entry point)
 │   ├── agent/                   # REPL agent escalation path
 │   ├── tools/                   # gene resolver, UniProt, GO, Disco wrappers
 │   ├── clients/                 # OpenAI-compatible LLM/embed/rerank clients
@@ -160,7 +159,7 @@ XCompass_Chi/
 ├── docs/
 │   ├── infra.md                 # service requirements + setup
 │   ├── ablations.md             # what each --enable-* flag changes
-│   └── adapter.md               # how the QAClient maps to V14CascadeClient
+│   └── adapter.md               # how the QAClient maps to PipelineCascadeClient
 ├── golden/
 │   └── cached_smoke.jsonl       # 50-item recorded prompt/response set
 ├── scripts/

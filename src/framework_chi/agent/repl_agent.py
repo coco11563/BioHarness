@@ -4,7 +4,7 @@ The default escalation in this release is a single-call, longer-budget LLM
 prompt that reasons over the assembled context + any pre-fetched tool
 evidence (gene/UniProt/GO lookups). The full multi-iteration REPL agent
 with Python execution is exposed as a hook: subclass
-:class:`V14CascadeClient` and override :meth:`V14CascadeClient._agent`
+:class:`PipelineCascadeClient` and override :meth:`PipelineCascadeClient._agent`
 to plug in a heavier implementation. The hook signature is stable.
 """
 

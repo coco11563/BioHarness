@@ -1,5 +1,5 @@
 """Adaptive-cascade fast-path + escalation orchestration."""
 
-from framework_chi.cascade.client import V14CascadeClient
+from framework_chi.cascade.client import PipelineCascadeClient
 
-__all__ = ["V14CascadeClient"]
+__all__ = ["PipelineCascadeClient"]

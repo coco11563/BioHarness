@@ -1,4 +1,8 @@
-# How the framework-eval QAClient maps to V14CascadeClient
+# How the framework-eval QAClient maps to PipelineCascadeClient
+
+> Naming note: the in-tree class is ``PipelineCascadeClient`` and the
+> registered entry-point id is ``pipeline``. The earlier internal codename
+> ``v14-cascade-dual-rerank-grounded`` is gone from the public surface.
 
 `framework-eval` calls every method through the
 `framework_eval.plugins.QAClient` protocol:
@@ -10,12 +14,12 @@ class QAClient(Protocol):
     async def aclose(self) -> None: ...
 ```
 
-`V14CascadeClient` implements that protocol. Its `generate` method is
+`PipelineCascadeClient` implements that protocol. Its `generate` method is
 the orchestration point for the seven-stage cascade described in the
 `{framework}^χ` paper. The mapping looks like:
 
 ```text
-Item                     ->  V14CascadeClient.generate
+Item                     ->  PipelineCascadeClient.generate
                               ├─ _retrieve              # dense + dual rerank
                               ├─ _fast_path             # constrained gen + logprob
                               ├─ _answer_is_grounded    # optional grounded gate
@@ -28,12 +32,12 @@ Prediction(answer=..., extras={stage, logprob, ...})
 Each underscore-prefixed method is a stable hook. To plug in your own
 agent (e.g. the full `BiomedicalRLMPipeline` that runs the REPL +
 multi-tool dispatch from your infrastructure repository), subclass
-`V14CascadeClient` and override `_agent`:
+`PipelineCascadeClient` and override `_agent`:
 
 ```python
-from framework_chi.cascade.client import V14CascadeClient, AgentOutcome
+from framework_chi.cascade.client import PipelineCascadeClient, AgentOutcome
 
-class MyChi(V14CascadeClient):
+class MyChi(PipelineCascadeClient):
     async def _agent(self, item, ctx, fast_path):
         # Call your in-house pipeline here
         text = await my_repl_pipeline.run(item, ctx.passages)

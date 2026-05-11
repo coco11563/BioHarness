@@ -32,7 +32,7 @@ def test_package_imports() -> None:
 
 def test_manifest_parses() -> None:
     data = tomllib.loads((ROOT / "MANIFEST.toml").read_text())
-    assert data["framework_eval"]["plugin_entry_point"] == "v14-cascade-dual-rerank-grounded"
+    assert data["framework_eval"]["plugin_entry_point"] == "pipeline"
     assert data["headline"]["total_items"] == 19302
     assert data["headline"]["binary_accuracy"] == 0.766035
 
@@ -76,8 +76,8 @@ def test_pyproject_entry_point_resolves() -> None:
     """The pyproject framework_eval.methods entry point must import."""
     data = tomllib.loads((ROOT / "pyproject.toml").read_text())
     eps = data["project"]["entry-points"]["framework_eval.methods"]
-    assert eps["v14-cascade-dual-rerank-grounded"]
-    module_name, _, attr = eps["v14-cascade-dual-rerank-grounded"].partition(":")
+    assert eps["pipeline"]
+    module_name, _, attr = eps["pipeline"].partition(":")
     import importlib
     mod = importlib.import_module(module_name)
     assert hasattr(mod, attr)

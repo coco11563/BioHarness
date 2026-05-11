@@ -27,9 +27,9 @@ sys.path.insert(0, str(ROOT / "src"))
 async def _record(args: argparse.Namespace) -> int:
     from framework_eval.loader import load_from_hub
 
-    from framework_chi.cascade.client import V14CascadeClient
+    from framework_chi.cascade.client import PipelineCascadeClient
 
-    client = V14CascadeClient()
+    client = PipelineCascadeClient()
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
 
