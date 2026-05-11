@@ -171,20 +171,6 @@ XCompass_Chi/
 
 ---
 
-## Citation
-
-If you use `XCompass_Chi`, please cite both the upstream datasets and the
-`{framework}^χ` paper. See `CITATION.cff` for the machine-readable form.
-
-```bibtex
-@misc{framework_chi_2026,
-  title  = {{framework}^chi: Adaptive Cascade for Biomedical QA},
-  author = {{ {framework} authors }},
-  year   = {2026},
-  url    = {https://github.com/coco11563/XCompass_Chi}
-}
-```
-
 ## License
 
 Apache-2.0 (see `LICENSE`).
