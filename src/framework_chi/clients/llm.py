@@ -25,9 +25,14 @@ class LLMClient:
         max_tokens: int = 256,
         temperature: float = 0.0,
         top_logprobs: int = 1,
+        enable_thinking: bool = False,
     ) -> tuple[str, float]:
         """Chat completion that also returns the mean logprob of the
         emitted tokens. The mean is used as the cascade routing signal.
+
+        ``enable_thinking=False`` disables Qwen-3 chat-template thinking mode
+        so a ``max_tokens=4`` constrained call returns the actual answer
+        token rather than the start of a chain-of-thought.
         """
         payload: dict[str, Any] = {
             "model": model,
@@ -36,6 +41,7 @@ class LLMClient:
             "temperature": temperature,
             "logprobs": True,
             "top_logprobs": top_logprobs,
+            "chat_template_kwargs": {"enable_thinking": enable_thinking},
         }
         r = await self._client.post(
             f"{self._base_url}/chat/completions",

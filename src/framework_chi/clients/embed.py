@@ -10,16 +10,35 @@ class EmbedClient:
         self._base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {api_key}"}
         self._client = httpx.AsyncClient(timeout=timeout)
+        self._model: str | None = None
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def embed(self, texts: list[str], *, model: str = "embedding") -> list[list[float]]:
+    async def _resolve_model(self) -> str:
+        """Auto-discover the served model id from ``/models``.
+
+        vLLM rejects requests with an unknown model name (HTTP 404), so we
+        cannot hard-code a placeholder. Probing once and caching keeps the
+        hot path zero-overhead.
+        """
+        if self._model is not None:
+            return self._model
+        r = await self._client.get(f"{self._base_url}/models", headers=self._headers)
+        r.raise_for_status()
+        data = r.json().get("data") or []
+        if not data:
+            raise RuntimeError(f"no models served at {self._base_url}/models")
+        self._model = data[0]["id"]
+        return self._model
+
+    async def embed(self, texts: list[str], *, model: str | None = None) -> list[list[float]]:
         if not texts:
             return []
+        resolved = model or await self._resolve_model()
         r = await self._client.post(
             f"{self._base_url}/embeddings",
-            json={"model": model, "input": texts},
+            json={"model": resolved, "input": texts},
             headers=self._headers,
         )
         r.raise_for_status()
