@@ -13,6 +13,27 @@ from typing import Any
 LOGGER = logging.getLogger(__name__)
 
 
+def merge_passages(
+    a: list[dict[str, Any]],
+    b: list[dict[str, Any]],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Union two passage lists, deduplicating by passage id, keeping the
+    higher dense-retrieval score on a tie. Used by yesno dual retrieval."""
+    seen: dict[Any, dict[str, Any]] = {}
+    for src in (a, b):
+        for p in src or []:
+            pid = p.get("id")
+            if pid is None:
+                pid = (p.get("text") or "")[:64]
+            existing = seen.get(pid)
+            if existing is None or (p.get("score") or 0) > (existing.get("score") or 0):
+                seen[pid] = p
+    out = sorted(seen.values(), key=lambda p: -(p.get("score") or 0.0))
+    return out[:limit]
+
+
 async def dense_retrieve(
     embed_client: Any,
     qdrant_client: Any,

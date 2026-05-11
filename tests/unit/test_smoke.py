@@ -48,18 +48,18 @@ def test_cli_version() -> None:
     assert buf.getvalue().strip()
 
 
-def test_cli_ablations_emits_json() -> None:
+def test_cli_config_emits_json() -> None:
     from framework_chi.cli.main import main
 
     buf = io.StringIO()
     with redirect_stdout(buf):
-        rc = main(["ablations"])
+        rc = main(["config"])
     assert rc == 0
     payload = json.loads(buf.getvalue())
-    assert payload["cascade_threshold"] == 0.7
-    # `-grounded` in the headline method id corresponds to this default.
-    assert payload["enable_grounded_gate"] is True
-    assert payload["enable_dual_rerank"] is True
+    assert payload["cascade"]["cascade_threshold"] == 0.7
+    assert payload["cascade"]["retrieval_top_k"] == 20
+    assert payload["cascade"]["dense_collection"] == "paper-full"
+    assert "force_agent" in payload["services"]
 
 
 def test_forbidden_string_scanner_passes_on_repo() -> None:

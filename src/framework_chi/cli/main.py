@@ -1,8 +1,8 @@
-"""framework-chi: doctor + thresholds + version utilities.
+"""framework-chi: doctor + config introspection.
 
 The actual scoring entry point is ``framework-eval run --method
 v14-cascade-dual-rerank-grounded ...``; this CLI exists for
-infrastructure self-checks and ablation flag introspection.
+infrastructure self-checks and to print the resolved configuration.
 """
 
 from __future__ import annotations
@@ -12,11 +12,19 @@ import asyncio
 import json
 import sys
 from collections.abc import Sequence
+from dataclasses import asdict
 
 import httpx
 
 from framework_chi import __version__
-from framework_chi.config import CascadeOptions, ServiceConfig
+from framework_chi.config import (
+    CASCADE_THRESHOLD,
+    DENSE_COLLECTION,
+    MAX_AGENT_ITERATIONS,
+    RERANK_TOP_K,
+    RETRIEVAL_TOP_K,
+    ServiceConfig,
+)
 
 
 # ----------------------------------------------------------------------
@@ -37,7 +45,6 @@ async def _probe(url: str, *, expect_path: str = "") -> tuple[bool, str]:
 
 
 async def _probe_postgres(url: str) -> tuple[bool, str]:
-    """Lightweight Postgres reachability check: import psycopg + try a connect."""
     try:
         import psycopg
     except ImportError:
@@ -50,7 +57,11 @@ async def _probe_postgres(url: str) -> tuple[bool, str]:
         return False, str(exc)
 
 
-def _cmd_doctor(args: argparse.Namespace) -> int:
+async def _async_skip() -> tuple[bool, str]:
+    return True, "not configured"
+
+
+def _cmd_doctor(_args: argparse.Namespace) -> int:
     services = ServiceConfig.from_env()
     summary = services.reachable_summary()
     print(f"framework-chi {__version__} — service connectivity check")
@@ -65,44 +76,38 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
             _probe(summary["qdrant"], expect_path="/collections"),
             _probe_postgres(summary["pubmed_pg"]),
             _probe_postgres(summary["papergraph_pg"]),
-            _probe(summary["disco"], expect_path="/health") if "disco" in summary else _async_skip(),
-            return_exceptions=False,
         )
-        labels = [
-            "llm", "embed", "rerank", "qdrant",
-            "pubmed_pg", "papergraph_pg", "disco",
-        ]
+        labels = ["llm", "embed", "rerank", "qdrant", "pubmed_pg", "papergraph_pg"]
         for label, (ok, detail) in zip(labels, results, strict=False):
             url = summary.get(label, "(unset)")
             mark = "ok" if ok else "FAIL"
-            if not ok and label != "disco":
+            if not ok:
                 fail += 1
             print(f"  {label:<14}  {mark:<4}  {url}  ({detail})")
 
     asyncio.run(main_async())
+    if services.force_agent:
+        print("  force_agent ........ ON  (every non-yesno item escalates to the agent)")
     return 1 if fail else 0
 
 
-async def _async_skip() -> tuple[bool, str]:
-    return True, "not configured"
-
-
 # ----------------------------------------------------------------------
-# thresholds (proxy to framework-eval table) and ablations
+# config introspection
 # ----------------------------------------------------------------------
 
 
-def _cmd_ablations(_args: argparse.Namespace) -> int:
-    options = CascadeOptions()
+def _cmd_config(_args: argparse.Namespace) -> int:
+    """Print the resolved ServiceConfig + cascade constants as JSON."""
+    services = asdict(ServiceConfig.from_env())
     payload = {
-        "cascade_threshold":    options.cascade_threshold,
-        "enable_grounded_gate": options.enable_grounded_gate,
-        "enable_dual_rerank":   options.enable_dual_rerank,
-        "enable_disco":         options.enable_disco,
-        "max_agent_iterations": options.max_agent_iterations,
-        "no_tools":             options.no_tools,
-        "retrieval_top_k":      options.retrieval_top_k,
-        "rerank_top_k":         options.rerank_top_k,
+        "services": services,
+        "cascade": {
+            "cascade_threshold":    CASCADE_THRESHOLD,
+            "retrieval_top_k":      RETRIEVAL_TOP_K,
+            "rerank_top_k":         RERANK_TOP_K,
+            "max_agent_iterations": MAX_AGENT_ITERATIONS,
+            "dense_collection":     DENSE_COLLECTION,
+        },
     }
     print(json.dumps(payload, indent=2))
     return 0
@@ -116,7 +121,7 @@ def _cmd_ablations(_args: argparse.Namespace) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="framework-chi",
-        description="{framework}^χ — adaptive cascade method utilities.",
+        description="{framework}^χ — adaptive cascade utilities.",
     )
     parser.add_argument("--version", action="version", version=__version__)
 
@@ -128,8 +133,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.set_defaults(func=_cmd_doctor)
 
-    p = sub.add_parser("ablations", help="print the default ablation flag table")
-    p.set_defaults(func=_cmd_ablations)
+    p = sub.add_parser(
+        "config",
+        help="print the resolved service URLs + cascade constants",
+    )
+    p.set_defaults(func=_cmd_config)
 
     return parser
 

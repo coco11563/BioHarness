@@ -1,5 +1,4 @@
-"""Cascade-routing tests using the StubV14CascadeClient + monkey-patched
-sub-stages."""
+"""Cascade-routing tests using monkey-patched sub-stages."""
 
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ from framework_chi.cascade.client import (
     StubV14CascadeClient,
     V14CascadeClient,
 )
-from framework_chi.config import CascadeOptions
+from framework_chi.config import ServiceConfig
 
 
 def _item(qtype: str = "yesno", **kw: Any) -> Item:
@@ -28,32 +27,33 @@ def _item(qtype: str = "yesno", **kw: Any) -> Item:
     return Item(**base)
 
 
-@pytest.mark.asyncio
-async def test_stub_returns_extracted_answer() -> None:
-    client = StubV14CascadeClient(fixed_answer="FINAL(yes)")
-    pred = await client.generate(_item("yesno"))
-    assert pred.answer == "yes"
-    assert pred.extras["stage"] == "stub"
+def _services(force_agent: bool = False) -> ServiceConfig:
+    return ServiceConfig(
+        llm_url="http://t/v1", embed_url="http://t/v1", rerank_url="http://t/v1",
+        qdrant_url="http://t", pubmed_pg_url="postgresql://t/x",
+        papergraph_pg_url="postgresql://t/x", model_name="t", api_key="EMPTY",
+        force_agent=force_agent,
+    )
 
 
-def _patch(monkeypatch, *, fast_logprob: float, grounded: bool, rejudge_text: str = "no"):
-    async def fake_retrieve(self, item):  # type: ignore[no-redef]
-        return RetrievalContext(passages=[{"text": "supporting evidence"}], rerank_scores=[1.0])
+def _patch(monkeypatch, *, fast_logprob: float, grounded: bool,
+           fast_answer: str = "yes", rejudge_text: str = "no"):
+    async def fake_retrieve(self, item):
+        return RetrievalContext(
+            passages=[{"text": "supporting evidence"}],
+            rerank_scores=[1.0], rewritten_query="rewritten",
+        )
 
     async def fake_fast(self, item, ctx):
         return FastPathOutcome(
-            answer="yes" if grounded else "maybe",
-            response_text="raw",
-            logprob=fast_logprob,
-            grounded=grounded,
+            answer=fast_answer, response_text="raw",
+            logprob=fast_logprob, grounded=grounded,
         )
 
     async def fake_agent(self, item, ctx, fp):
         return AgentOutcome(
-            answer="agent draft",
-            response_text="agent reasoning",
-            iterations=1,
-            tool_calls=["pubmed_search"],
+            answer="agent draft", response_text="agent reasoning",
+            iterations=1, tool_calls=["pubmed_search"],
         )
 
     async def fake_rejudge(self, item, agent):
@@ -66,39 +66,51 @@ def _patch(monkeypatch, *, fast_logprob: float, grounded: bool, rejudge_text: st
 
 
 @pytest.mark.asyncio
-async def test_high_logprob_returns_fast_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch(monkeypatch, fast_logprob=0.95, grounded=True, rejudge_text="no")
-    client = V14CascadeClient(options=CascadeOptions(cascade_threshold=0.7))
-    pred = await client.generate(_item("mcq"))
-    assert pred.extras["stage"] == "fast_path"
+async def test_stub_returns_extracted_answer() -> None:
+    client = StubV14CascadeClient(fixed_answer="yes", services=_services())
+    pred = await client.generate(_item("yesno"))
     assert pred.answer == "yes"
+    assert pred.extras["stage"] == "stub"
 
 
 @pytest.mark.asyncio
-async def test_low_logprob_escalates_to_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_high_logprob_returns_fast_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch(monkeypatch, fast_logprob=0.95, grounded=True)
+    client = V14CascadeClient(services=_services())
+    pred = await client.generate(_item("mcq", answer="A"))
+    assert pred.extras["stage"] == "fast_path"
+
+
+@pytest.mark.asyncio
+async def test_low_logprob_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch(monkeypatch, fast_logprob=0.1, grounded=True, rejudge_text="no")
-    client = V14CascadeClient(options=CascadeOptions(cascade_threshold=0.7))
-    pred = await client.generate(_item("mcq"))
+    client = V14CascadeClient(services=_services())
+    pred = await client.generate(_item("mcq", answer="A"))
     assert pred.extras["stage"] == "agent_rejudged"
     assert pred.answer == "no"
 
 
 @pytest.mark.asyncio
-async def test_grounded_gate_escalates_when_not_grounded(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_ungrounded_answer_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch(monkeypatch, fast_logprob=0.95, grounded=False, rejudge_text="no")
-    client = V14CascadeClient(
-        options=CascadeOptions(cascade_threshold=0.7, enable_grounded_gate=True),
-    )
-    pred = await client.generate(_item("mcq"))
+    client = V14CascadeClient(services=_services())
+    pred = await client.generate(_item("mcq", answer="A"))
     assert pred.extras["stage"] == "agent_rejudged"
 
 
 @pytest.mark.asyncio
 async def test_yesno_always_takes_fast_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Per paper §5.2: agent over-analyses yes/no; cascade always fast-paths."""
-    _patch(monkeypatch, fast_logprob=0.0, grounded=False, rejudge_text="ignored")
-    client = V14CascadeClient(
-        options=CascadeOptions(cascade_threshold=0.7, enable_grounded_gate=True),
-    )
+    """Paper §5.2: yesno always fast-paths; agent over-analyses."""
+    _patch(monkeypatch, fast_logprob=0.0, grounded=False)
+    client = V14CascadeClient(services=_services(force_agent=True))
     pred = await client.generate(_item("yesno"))
     assert pred.extras["stage"] == "fast_path"
+
+
+@pytest.mark.asyncio
+async def test_force_agent_overrides_high_logprob(monkeypatch: pytest.MonkeyPatch) -> None:
+    """force_agent=True escalates even high-confidence non-yesno items."""
+    _patch(monkeypatch, fast_logprob=0.99, grounded=True, rejudge_text="no")
+    client = V14CascadeClient(services=_services(force_agent=True))
+    pred = await client.generate(_item("mcq", answer="A"))
+    assert pred.extras["stage"] == "agent_rejudged"

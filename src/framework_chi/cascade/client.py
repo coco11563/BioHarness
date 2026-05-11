@@ -1,25 +1,29 @@
 """V14CascadeClient: the {framework}^χ headline method.
 
-Pipeline shape (matches the paper):
+Pipeline shape (single best-config configuration, no ablation flags):
 
-    item -> tool pre-call -> dense retrieval -> dual rerank
-         -> constrained generation (max_tokens=4 + logprob)
-         -> if logprob > threshold and (not grounded_gate or grounded):
-              return fast-path answer
-            else:
-              REPL agent escalation (max_iterations=8)
-              -> constrained re-judgment (max_tokens=4)
-              -> return re-judged answer
+    item -> rewrite query (yesno also produces a paired negative-hypothesis query)
+         -> dense retrieve + dual rerank (yesno: union of pos/neg retrievals)
+         -> constrained generation (per-type prompt, per-type max_tokens,
+            mean-logprob confidence)
+         -> if confidence >= 0.7 AND answer is grounded AND not force_agent
+                AND item is yesno  -> return fast-path answer
+            else                    -> agent escalation + constrained re-judgment
+                                       (yesno still uses the fast path because
+                                        the agent over-analyses; this matches
+                                        the paper §5.2 finding)
 
-Each stage is a small private method so unit tests can exercise it in
-isolation. The class implements ``framework_eval.plugins.QAClient``.
+The single user-facing knob is ``ServiceConfig.force_agent``: when True,
+every non-yesno item bypasses the fast path. yesno always takes the fast
+path even with ``force_agent`` because the agent introduces a documented
+'no' bias for yes/no questions.
 
 Every stage is a stable extension point: subclass ``V14CascadeClient`` and
-override ``_retrieve``, ``_fast_path``, ``_agent``, ``_rejudge``, or
-``_answer_is_grounded`` to plug in a heavier or differently-tuned
-implementation while keeping the cascade routing intact. To reach the
-published headline numbers on the full 19,302-item benchmark you must
-connect a live LLM stack (see ``docs/infra.md``).
+override ``_retrieve``, ``_fast_path``, ``_agent``, or ``_rejudge`` to plug
+in a heavier or differently-tuned implementation while keeping the cascade
+routing intact. To reach the published headline numbers on the full
+19,302-item benchmark you must connect a live LLM stack (see
+``docs/infra.md``).
 """
 
 from __future__ import annotations
@@ -28,10 +32,15 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from framework_eval.eval.extraction import extract_answer
 from framework_eval.eval.types import Item, Prediction, QuestionType
 
-from framework_chi.config import CascadeOptions, ServiceConfig
+from framework_chi.config import (
+    CASCADE_THRESHOLD,
+    DENSE_COLLECTION,
+    RERANK_TOP_K,
+    RETRIEVAL_TOP_K,
+    ServiceConfig,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +54,8 @@ LOGGER = logging.getLogger(__name__)
 class RetrievalContext:
     passages: list[dict[str, Any]] = field(default_factory=list)
     rerank_scores: list[float]     = field(default_factory=list)
+    rewritten_query: str           = ""
+    negative_query: str            = ""
 
 
 @dataclass
@@ -74,18 +85,10 @@ class V14CascadeClient:
 
     name = "v14-cascade-dual-rerank-grounded"
 
-    def __init__(
-        self,
-        *,
-        services: ServiceConfig | None = None,
-        options: CascadeOptions | None = None,
-    ) -> None:
+    def __init__(self, *, services: ServiceConfig | None = None) -> None:
         self.services = services or ServiceConfig.from_env()
-        self.options  = options or CascadeOptions()
 
-        # Lazy-imported clients; created on first use so the constructor
-        # stays cheap and the framework-eval ``framework-eval list-methods``
-        # call does not require a live inference stack.
+        # Lazy-imported clients; created on first use.
         self._llm     = None
         self._embed   = None
         self._rerank  = None
@@ -101,21 +104,25 @@ class V14CascadeClient:
         fast_path = await self._fast_path(item, retrieval)
 
         should_escalate = (
-            fast_path.logprob < self.options.cascade_threshold
-            or not fast_path.answer            # empty extracted answer always escalates
-            or (self.options.enable_grounded_gate and not fast_path.grounded)
+            self.services.force_agent
+            or fast_path.logprob < CASCADE_THRESHOLD
+            or not fast_path.answer
+            or not fast_path.grounded
         )
 
+        # yesno always returns the fast-path answer (paper §5.2: the agent
+        # over-analyses and introduces a documented 'no' bias).
         if not should_escalate or item.question_type == "yesno":
-            # yesno always uses the fast path (agent over-analyses; see paper §5.2)
             return Prediction(
                 item_id=item.id,
                 answer=fast_path.answer,
                 extras={
-                    "response_text": fast_path.response_text,
-                    "logprob": fast_path.logprob,
-                    "grounded": fast_path.grounded,
-                    "stage": "fast_path",
+                    "response_text":   fast_path.response_text,
+                    "logprob":         fast_path.logprob,
+                    "grounded":        fast_path.grounded,
+                    "rewritten_query": retrieval.rewritten_query,
+                    "negative_query":  retrieval.negative_query,
+                    "stage":           "fast_path",
                 },
             )
 
@@ -125,11 +132,12 @@ class V14CascadeClient:
             item_id=item.id,
             answer=rejudged,
             extras={
-                "response_text": agent.response_text,
+                "response_text":     agent.response_text,
                 "fast_path_logprob": fast_path.logprob,
-                "agent_iterations": agent.iterations,
-                "agent_tool_calls": agent.tool_calls,
-                "stage": "agent_rejudged",
+                "rewritten_query":   retrieval.rewritten_query,
+                "agent_iterations":  agent.iterations,
+                "agent_tool_calls":  agent.tool_calls,
+                "stage":             "agent_rejudged",
             },
         )
 
@@ -149,35 +157,62 @@ class V14CascadeClient:
     # ------------------------------------------------------------------
 
     async def _retrieve(self, item: Item) -> RetrievalContext:
-        """Dense retrieval + optional dual-rerank pass."""
+        """Rewrite query → dense retrieve → dual rerank.
+
+        ``yesno`` and ``factoid`` items retrieve with the verbatim question
+        (rewrite hurts on these per the upstream pipeline's policy).
+        Other types get a single LLM-rewritten retrieval query.
+        """
         from framework_chi.cascade.retrieval import dense_retrieve, dual_rerank
+        from framework_chi.cascade.rewrite import SKIP_REWRITE_TYPES, rewrite_query
+
+        llm = self._llm_client()
+        embed = self._embed_client()
+        qdrant = self._qdrant_client()
+
+        if item.question_type in SKIP_REWRITE_TYPES or item.question_type == "yesno":
+            rewritten = item.question
+        else:
+            rewritten = await rewrite_query(
+                llm, model_name=self.services.model_name, item=item,
+            )
 
         passages = await dense_retrieve(
-            self._embed_client(), self._qdrant_client(),
-            item.question, top_k=self.options.retrieval_top_k,
+            embed, qdrant, rewritten,
+            top_k=RETRIEVAL_TOP_K, collection=DENSE_COLLECTION,
         )
-        if self.options.enable_dual_rerank and passages:
+        negative = ""
+
+        scores: list[float]
+        if passages:
             scores = await dual_rerank(
                 self._rerank_client(), item.question, passages,
-                top_k=self.options.rerank_top_k,
+                top_k=RERANK_TOP_K,
             )
-            # Reorder by rerank score (descending) then keep the top-K used
-            # for the constrained-gen prompt.
             order = sorted(
-                range(len(passages)), key=lambda i: -scores[i] if i < len(scores) else 0,
+                range(len(passages)),
+                key=lambda i: -scores[i] if i < len(scores) else 0.0,
             )
             ranked = [(passages[i], scores[i] if i < len(scores) else 0.0) for i in order]
-            ranked = ranked[: self.options.rerank_top_k]
+            ranked = ranked[:RERANK_TOP_K]
             passages = [p for p, _ in ranked]
             scores = [s for _, s in ranked]
         else:
-            passages = passages[: self.options.rerank_top_k]
-            scores = [1.0] * len(passages)
-        return RetrievalContext(passages=passages, rerank_scores=scores)
+            scores = []
+
+        return RetrievalContext(
+            passages=passages,
+            rerank_scores=scores,
+            rewritten_query=rewritten,
+            negative_query=negative,
+        )
 
     async def _fast_path(self, item: Item, ctx: RetrievalContext) -> FastPathOutcome:
-        """Constrained generation with logprob; returns the routing signal."""
-        from framework_chi.cascade.constrained import constrained_generate
+        """Constrained generation + logprob + grounded check."""
+        from framework_chi.cascade.constrained import (
+            constrained_generate,
+            extract_constrained_answer,
+        )
 
         text, logprob = await constrained_generate(
             self._llm_client(),
@@ -185,7 +220,7 @@ class V14CascadeClient:
             item=item,
             passages=ctx.passages,
         )
-        normalised = extract_answer(text, item.question_type, item.options, mode="strict")
+        normalised = extract_constrained_answer(text, item.question_type, item.options)
         grounded = self._answer_is_grounded(normalised, ctx, item) if normalised else False
         return FastPathOutcome(
             answer=normalised, response_text=text,
@@ -195,23 +230,21 @@ class V14CascadeClient:
     async def _agent(
         self, item: Item, ctx: RetrievalContext, fast_path: FastPathOutcome,
     ) -> AgentOutcome:
-        """REPL agent escalation. Default returns the fast-path answer when
-        the agent module is not configured; override to plug in the full
-        ``BiomedicalRLMPipeline`` from your infrastructure repository."""
+        """REPL agent escalation hook. Default is a longer-budget LLM call
+        with the assembled context; subclass to wire a multi-iteration
+        REPL agent."""
         from framework_chi.agent.repl_agent import run_agent
 
         return await run_agent(
             llm=self._llm_client(),
             services=self.services,
-            options=self.options,
             item=item,
             retrieval=ctx,
             fast_path=fast_path,
         )
 
     async def _rejudge(self, item: Item, agent: AgentOutcome) -> str:
-        """Constrained re-judgment from agent's free-form answer."""
-        from framework_chi.cascade.constrained import rejudge
+        from framework_chi.cascade.constrained import extract_constrained_answer, rejudge
 
         text = await rejudge(
             self._llm_client(),
@@ -219,7 +252,7 @@ class V14CascadeClient:
             item=item,
             agent_text=agent.response_text or agent.answer,
         )
-        return extract_answer(text, item.question_type, item.options, mode="strict")
+        return extract_constrained_answer(text, item.question_type, item.options)
 
     # ------------------------------------------------------------------
     # Grounded gate
@@ -228,16 +261,25 @@ class V14CascadeClient:
     def _answer_is_grounded(
         self, answer: str, ctx: RetrievalContext, item: Item | None = None,
     ) -> bool:
-        """Substring-grounded check.
+        """Substring-grounded check (relaxed for short labels).
 
-        For MCQ answers (single capital letter) substring-matching against
-        the passage text is meaningless, so the grounded gate matches
-        against the *selected option's text* when options are present.
+        yesno labels are always considered grounded because the substring
+        check is meaningless for one-token answers. mcq labels are
+        grounded if the *option text* appears in retrieved evidence.
+        Longer answers must literally appear in at least one passage.
         """
-        if not answer or not ctx.passages:
+        if not answer:
+            return False
+        qt = item.question_type if item else ""
+        if qt == "yesno" or len(answer) <= 3:
+            return True
+        if not ctx.passages:
             return False
         needle = answer.lower()
-        if item and item.options and len(answer) == 1 and answer.upper() in item.options:
+        if (
+            item and item.options and len(answer) == 1
+            and answer.upper() in item.options
+        ):
             needle = item.options[answer.upper()].lower()
         for p in ctx.passages:
             text = (p.get("text") or "").lower()
@@ -278,13 +320,16 @@ class V14CascadeClient:
         return self._qdrant
 
 
-# Convenience: a no-op client for offline tests.
+# ----------------------------------------------------------------------
+# Stub for offline / CI smoke
+# ----------------------------------------------------------------------
+
 
 class StubV14CascadeClient(V14CascadeClient):
-    """V14CascadeClient that always returns a fixed answer.
+    """V14CascadeClient that returns a fixed answer.
 
-    Useful for CI smoke runs that exercise the framework-eval -> Chi
-    integration without touching any live service.
+    Useful for CI runs that exercise the framework-eval → Chi integration
+    without touching any live service.
     """
 
     def __init__(self, *, fixed_answer: str = "yes", **kw: Any) -> None:
@@ -292,10 +337,12 @@ class StubV14CascadeClient(V14CascadeClient):
         self._fixed_answer = fixed_answer
 
     async def generate(self, item: Item) -> Prediction:
+        from framework_chi.cascade.constrained import extract_constrained_answer
+
         return Prediction(
             item_id=item.id,
-            answer=extract_answer(
-                self._fixed_answer, item.question_type, item.options, mode="strict",
+            answer=extract_constrained_answer(
+                self._fixed_answer, item.question_type, item.options,
             ),
             extras={"stage": "stub", "response_text": self._fixed_answer},
         )

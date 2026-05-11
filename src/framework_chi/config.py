@@ -3,6 +3,14 @@
 Every endpoint defaults to a localhost SSH-tunnel address that matches
 the layout described in ``docs/infra.md``. Override any of them via the
 documented environment variables before constructing a V14CascadeClient.
+
+This release ships a single, fixed best configuration of the cascade.
+The one user-facing knob is ``force_agent``: when True, every item
+bypasses the constrained-generation fast path and is routed through the
+agent escalation + re-judgment stages. Useful for ablation runs that
+want to measure the agent's contribution in isolation; off by default
+because the cascade fast-path is faster and (on the {framework}^χ
+headline) more accurate on average.
 """
 
 from __future__ import annotations
@@ -15,17 +23,24 @@ def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass(frozen=True)
 class ServiceConfig:
-    llm_url:        str
-    embed_url:      str
-    rerank_url:     str
-    qdrant_url:     str
-    pubmed_pg_url:  str
+    llm_url:           str
+    embed_url:         str
+    rerank_url:        str
+    qdrant_url:        str
+    pubmed_pg_url:     str
     papergraph_pg_url: str
-    model_name:     str
-    api_key:        str
-    disco_url:      str | None = None
+    model_name:        str
+    api_key:           str
+    force_agent:       bool = False
 
     @classmethod
     def from_env(cls) -> "ServiceConfig":
@@ -44,38 +59,25 @@ class ServiceConfig:
             ),
             model_name  = _env("FRAMEWORK_MODEL_NAME", "{model}"),
             api_key     = _env("FRAMEWORK_API_KEY",    "EMPTY"),
-            disco_url   = os.environ.get("FRAMEWORK_DISCO_URL"),
+            force_agent = _env_bool("FRAMEWORK_FORCE_AGENT", False),
         )
 
     def reachable_summary(self) -> dict[str, str]:
-        """Return a {service: url} map for the doctor command."""
-        out = {
-            "llm":        self.llm_url,
-            "embed":      self.embed_url,
-            "rerank":     self.rerank_url,
-            "qdrant":     self.qdrant_url,
-            "pubmed_pg":  self.pubmed_pg_url,
-            "papergraph_pg": self.papergraph_pg_url,
+        return {
+            "llm":            self.llm_url,
+            "embed":          self.embed_url,
+            "rerank":         self.rerank_url,
+            "qdrant":         self.qdrant_url,
+            "pubmed_pg":      self.pubmed_pg_url,
+            "papergraph_pg":  self.papergraph_pg_url,
         }
-        if self.disco_url:
-            out["disco"] = self.disco_url
-        return out
 
 
-@dataclass(frozen=True)
-class CascadeOptions:
-    """Pipeline knobs exposed as CLI ablation flags.
-
-    Defaults match the headline row ``v14-cascade-dual-rerank-grounded``;
-    the ``-grounded`` suffix in the row name corresponds to
-    ``enable_grounded_gate=True``.
-    """
-
-    cascade_threshold:    float = 0.7
-    enable_grounded_gate: bool  = True
-    enable_dual_rerank:   bool  = True
-    enable_disco:         bool  = False
-    max_agent_iterations: int   = 8
-    no_tools:             bool  = False
-    retrieval_top_k:      int   = 50
-    rerank_top_k:         int   = 10
+# Fixed cascade constants used by the {framework}^χ headline configuration.
+# These were tuned together with the prompt templates; do not edit without
+# re-recording the cached smoke set.
+CASCADE_THRESHOLD     = 0.7      # logprob-derived confidence below which we escalate
+RETRIEVAL_TOP_K       = 20       # dense retrieval before rerank
+RERANK_TOP_K          = 10       # passages handed to constrained generation
+MAX_AGENT_ITERATIONS  = 8        # upper bound for the agent escalation hook
+DENSE_COLLECTION      = "paper-full"

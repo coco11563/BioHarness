@@ -16,7 +16,7 @@ from typing import Any
 from framework_eval.eval.types import Item
 
 from framework_chi.cascade.client import AgentOutcome
-from framework_chi.config import CascadeOptions, ServiceConfig
+from framework_chi.config import ServiceConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +37,6 @@ async def run_agent(
     *,
     llm: Any,
     services: ServiceConfig,
-    options: CascadeOptions,
     item: Item,
     retrieval: Any,
     fast_path: Any,
@@ -48,13 +47,10 @@ async def run_agent(
     count and tool-call log. When the LLM call fails, the agent returns
     the fast-path answer so the cascade still produces output.
     """
-    if options.no_tools:
-        prompt_suffix = ""
-    else:
-        prompt_suffix = (
-            "\n\nYou may reference any of the passages above. Reason step by "
-            "step internally; output only the final answer."
-        )
+    prompt_suffix = (
+        "\n\nYou may reference any of the passages above. Reason step by "
+        "step internally; output only the final answer."
+    )
 
     ctx = _format_passages(retrieval.passages if retrieval else None)
     user_msg = (
