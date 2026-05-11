@@ -27,10 +27,19 @@ _BIOMED_SYSTEM_FORMAT = (
 )
 
 SYSTEM_PROMPTS: dict[str, str] = {
-    # yesno/mcq use the short system prompt — the long form's "no caveats"
-    # wording encourages the model to default to 'maybe' on yesno.
-    "yesno": _BIOMED_SYSTEM_SHORT,
-    "mcq":   _BIOMED_SYSTEM_FORMAT,
+    "yesno": (
+        "You are a strict answer formatter.\n"
+        "Output EXACTLY one word: yes or no.\n"
+        "Commit to yes or no based on the weight of evidence.\n"
+        "Lowercase only. No punctuation, no explanation, no extra words."
+    ),
+    "mcq": (
+        "You are a strict answer formatter.\n"
+        "Output EXACTLY one uppercase letter from the provided options "
+        "(A, B, C, D, etc.).\n"
+        "No punctuation, no explanation, no extra words."
+    ),
+    "_mcq_OLD_unused": _BIOMED_SYSTEM_FORMAT,
     "mcq_multi": (
         "You are a strict answer formatter.\n"
         "Output a comma-separated list of uppercase letters from the "
@@ -66,18 +75,17 @@ SYSTEM_PROMPTS: dict[str, str] = {
 
 USER_PROMPTS: dict[str, str] = {
     "yesno": (
-        "Question type: yesno\n"
-        "Answer with exactly one word: yes, no, or maybe.\n\n"
+        "Based on the evidence below, answer the question.\n\n"
         "Question: {question}\n\n"
-        "Context (top retrieved passages):\n{context}"
+        "Evidence:\n{context}\n\n"
+        "Answer (yes or no):"
     ),
     "mcq": (
-        "Question type: mcq\n"
-        "Answer with exactly one capital letter (A-E).\n\n"
-        "Question: {question}\n"
+        "Based on the evidence below, select the correct option.\n\n"
+        "Question: {question}\n\n"
         "Options:\n{options}\n\n"
-        "Context (top retrieved passages):\n{context}\n\n"
-        "Answer:"
+        "Evidence:\n{context}\n\n"
+        "Answer (single letter):"
     ),
     "mcq_multi": (
         "Based on the evidence below, select all correct options.\n\n"
@@ -139,20 +147,43 @@ def _format_options(options: dict[str, str] | None) -> str:
     return "\n".join(lines)
 
 
-def _format_context(passages: list[dict[str, Any]] | None, limit: int = 10) -> str:
+def _format_context(
+    passages: list[dict[str, Any]] | None,
+    *,
+    max_chars: int = 16000,
+    limit: int = 20,
+) -> str:
+    """Render passages in the upstream `build_dense_context` shape.
+
+    Layout::
+
+        ## Retrieved Documents
+
+        ### [i] PMID 12345 (score: 0.812)
+        **title**
+        abstract
+
+    A 16,000-character budget matches ``max_context_tokens=4000``.
+    """
     if not passages:
         return "(no retrieved evidence)"
-    parts = []
+    parts = ["## Retrieved Documents\n"]
+    total = 0
     for i, p in enumerate(passages[:limit], 1):
-        title = (p.get("metadata") or {}).get("title", "") or ""
+        meta = p.get("metadata") or {}
+        pmid = meta.get("pmid") or p.get("id") or "unknown"
+        title = (meta.get("title") or "").strip()
         text = (p.get("text") or "").strip()
-        if not text:
-            continue
-        header = f"[{i}] PMID {p.get('metadata', {}).get('pmid', '?')}"
-        if title:
-            header += f" — {title[:120]}"
-        parts.append(f"{header}\n{text[:1200]}")
-    return "\n\n".join(parts) if parts else "(no usable evidence)"
+        score = p.get("score") or 0.0
+        block = (
+            f"### [{i}] PMID {pmid} (score: {float(score):.3f})\n"
+            f"**{title}**\n{text}\n\n"
+        )
+        if total + len(block) > max_chars:
+            break
+        parts.append(block)
+        total += len(block)
+    return "".join(parts) if total else "(no usable evidence)"
 
 
 def build_messages(
@@ -180,7 +211,11 @@ async def constrained_generate(
     item: Item,
     passages: list[dict[str, Any]] | None,
 ) -> tuple[str, float]:
-    """Single-call fast path: returns (response_text, mean_logprob)."""
+    """Single-call fast path: returns (response_text, first-token confidence).
+
+    Matches the upstream cascade: ``temperature=0.1``, ``top_logprobs=5``,
+    confidence = ``exp(first_token.logprob)``.
+    """
     system, user = build_messages(item, passages)
     messages = [
         {"role": "system", "content": system},
@@ -188,14 +223,14 @@ async def constrained_generate(
     ]
     max_tokens = MAX_TOKENS.get(item.question_type, 64)
     try:
-        text, logprob = await llm_client.chat_with_logprob(
+        text, confidence = await llm_client.chat_with_first_token_confidence(
             model=model_name, messages=messages,
-            max_tokens=max_tokens, temperature=0.0,
+            max_tokens=max_tokens, temperature=0.1,
         )
     except Exception as exc:  # noqa: BLE001
         LOGGER.warning("constrained_generate failed: %s", exc)
         return "", 0.0
-    return text, logprob
+    return text, confidence
 
 
 async def rejudge(
@@ -205,11 +240,10 @@ async def rejudge(
     item: Item,
     agent_text: str,
 ) -> str:
-    """Re-judge the agent's free-form answer through the same constrained
-    prompt, with the agent's text appended as additional evidence."""
+    """Re-judge the agent's free-form answer through the constrained prompt."""
     system, user = build_messages(
         item,
-        passages=[{"text": f"Agent draft answer:\n{agent_text}", "metadata": {}}],
+        passages=[{"text": f"Agent analysis:\n{agent_text}", "metadata": {}}],
     )
     messages = [
         {"role": "system", "content": system},
@@ -217,9 +251,9 @@ async def rejudge(
     ]
     max_tokens = MAX_TOKENS.get(item.question_type, 64)
     try:
-        text, _ = await llm_client.chat_with_logprob(
+        text, _ = await llm_client.chat_with_first_token_confidence(
             model=model_name, messages=messages,
-            max_tokens=max_tokens, temperature=0.0,
+            max_tokens=max_tokens, temperature=0.1,
         )
     except Exception as exc:  # noqa: BLE001
         LOGGER.warning("rejudge failed: %s", exc)

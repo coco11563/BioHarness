@@ -1,11 +1,17 @@
-"""Query rewrite for retrieval.
+"""Retrieval augmentation primitives.
 
-Generates a single rewritten query optimised for dense retrieval before
-the cascade fast path. The rewrite step is a {framework}^χ component: it
-prompts the LLM to produce a search-engine-ready phrase that surfaces
-the kind of biomedical evidence needed to answer the question. For
-``yesno`` items, a paired negative-hypothesis query is also produced
-(see ``yesno_dual_query``) so the retrieval set covers both polarities.
+Two distinct retrieval augmentations are exposed:
+
+* :func:`pseudo_answer_text` — the LLM drafts a candidate answer paragraph
+  for the question, and the embedding of *that paragraph* is used as a
+  retrieval query. This catches concept-level passages that the literal
+  question text would miss.
+* :func:`negative_evidence_query` — appends literal counter-evidence
+  terms to the question, used only for yesno to surface "no" passages
+  that the positive retrieval would not return.
+
+Neither augmentation is run for question types whose answer is an
+entity lookup (e.g. ``factoid``); see :data:`SKIP_REWRITE_TYPES`.
 """
 
 from __future__ import annotations
@@ -18,83 +24,69 @@ from framework_eval.eval.types import Item
 LOGGER = logging.getLogger(__name__)
 
 
-_REWRITE_SYSTEM = (
-    "You rewrite questions into short retrieval queries. "
-    "Return only the query, no quotes, no explanation."
-)
-
-_REWRITE_USER = (
-    "Rewrite the following question as a concise search query that would "
-    "retrieve biomedical evidence relevant to answering it. Keep entities "
-    "and modifiers; drop interrogative scaffolding. Max 20 words.\n\n"
-    "Question: {question}\n\n"
-    "Query:"
-)
-
-
-# Question types where rewrite often hurts more than it helps because the
-# answer hinges on an entity lookup (e.g. GeneTuring "official symbol of X")
-# rather than evidence synthesis. Mirrors the upstream pipeline's policy.
+# Question types where the answer is an entity lookup and rewrite
+# augmentation typically hurts. Matches the upstream policy.
 SKIP_REWRITE_TYPES = frozenset({"factoid"})
 
+# Fixed counter-evidence terms appended verbatim to yesno questions.
+# These terms are deterministic so we do not pay an extra LLM call per item.
+NEGATIVE_EVIDENCE_TERMS = (
+    "no effect OR not effective OR no association OR failed OR no benefit"
+)
 
-async def rewrite_query(
+
+_PSEUDO_ANSWER_SYSTEM = (
+    "You generate a short hypothetical scientific abstract that would "
+    "directly answer the question. Output the abstract as if it were a "
+    "single paragraph from a published paper. No quotes, no markdown."
+)
+
+_PSEUDO_ANSWER_USER = (
+    "Question: {question}\n\n"
+    "Write a 3-5 sentence hypothetical abstract that would answer this "
+    "question. State the finding directly and cite typical biomedical "
+    "terminology. Do not refuse; this is a retrieval-augmentation step, "
+    "not a final answer."
+)
+
+
+async def pseudo_answer_text(
     llm_client: Any, *, model_name: str, item: Item,
 ) -> str:
-    """Return the rewritten retrieval query for ``item``.
+    """Generate a hypothetical answer paragraph for retrieval.
 
-    Falls back to the original question text on any failure or for
-    question types listed in ``SKIP_REWRITE_TYPES``.
+    The output is embedded and used as a *second* dense retrieval query
+    alongside the literal question. Falls back to the question text on
+    failure.
     """
     if item.question_type in SKIP_REWRITE_TYPES:
         return item.question
     messages = [
-        {"role": "system", "content": _REWRITE_SYSTEM},
-        {"role": "user",   "content": _REWRITE_USER.format(question=item.question)},
+        {"role": "system", "content": _PSEUDO_ANSWER_SYSTEM},
+        {"role": "user",   "content": _PSEUDO_ANSWER_USER.format(question=item.question)},
     ]
     try:
-        text, _ = await llm_client.chat_with_logprob(
+        text = await llm_client.chat(
             model=model_name, messages=messages,
-            max_tokens=64, temperature=0.0,
+            max_tokens=256, temperature=0.1,
         )
     except Exception as exc:  # noqa: BLE001
-        LOGGER.warning("rewrite_query failed: %s; falling back to original question", exc)
+        LOGGER.warning("pseudo_answer_text failed: %s; using question text", exc)
         return item.question
-    text = (text or "").strip().strip("\"'`")
+    text = (text or "").strip()
     return text or item.question
 
 
-_NEG_REWRITE_USER = (
-    "Rewrite the question as a search query that would retrieve evidence "
-    "AGAINST the proposition (the 'no' case). Same constraints as before: "
-    "short, no scaffolding, max 20 words. Keep entities.\n\n"
-    "Question: {question}\n\n"
-    "Negative-hypothesis query:"
-)
+def negative_evidence_query(item: Item) -> str:
+    """Return the literal negative-evidence retrieval query for yesno
+    items; empty string otherwise."""
+    if item.question_type != "yesno":
+        return ""
+    return f"{item.question} {NEGATIVE_EVIDENCE_TERMS}"
 
 
-async def yesno_dual_query(
-    llm_client: Any, *, model_name: str, item: Item,
-) -> tuple[str, str]:
-    """Return ``(positive_query, negative_query)`` for a yesno item.
-
-    The positive query is the standard rewrite; the negative query asks
-    the LLM for terms that would surface counter-evidence. The cascade
-    retrieves with both and merges the result sets so the constrained
-    fast path sees both polarities.
-    """
-    pos = await rewrite_query(llm_client, model_name=model_name, item=item)
-    messages = [
-        {"role": "system", "content": _REWRITE_SYSTEM},
-        {"role": "user",   "content": _NEG_REWRITE_USER.format(question=item.question)},
-    ]
-    try:
-        text, _ = await llm_client.chat_with_logprob(
-            model=model_name, messages=messages,
-            max_tokens=64, temperature=0.0,
-        )
-    except Exception as exc:  # noqa: BLE001
-        LOGGER.warning("yesno_dual_query negative pass failed: %s", exc)
-        return pos, item.question
-    neg = (text or "").strip().strip("\"'`") or item.question
-    return pos, neg
+# Back-compat names kept so external callers do not break if they
+# imported the old surface (returns the verbatim question; query rewrite
+# is now done implicitly via pseudo_answer_text instead).
+async def rewrite_query(_llm_client: Any, *, model_name: str, item: Item) -> str:  # noqa: ARG001
+    return item.question

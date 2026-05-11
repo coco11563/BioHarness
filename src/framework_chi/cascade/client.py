@@ -157,54 +157,94 @@ class V14CascadeClient:
     # ------------------------------------------------------------------
 
     async def _retrieve(self, item: Item) -> RetrievalContext:
-        """Rewrite query → dense retrieve → dual rerank.
+        """Multi-source retrieval: question + pseudo-answer + (yesno) negative.
 
-        ``yesno`` and ``factoid`` items retrieve with the verbatim question
-        (rewrite hurts on these per the upstream pipeline's policy).
-        Other types get a single LLM-rewritten retrieval query.
+        Three retrieval pools are issued in parallel:
+
+        1. Literal question against the dense index.
+        2. Embedding of an LLM-drafted pseudo-answer paragraph (skipped on
+           ``factoid``; falls back to the literal question on failure).
+        3. For yesno items only: a verbatim "no effect / not effective /
+           …" augmentation of the question.
+
+        The three pools are unioned on passage id and reranked by the
+        *original* question text, returning the top ``RERANK_TOP_K``
+        passages.
         """
-        from framework_chi.cascade.retrieval import dense_retrieve, dual_rerank
-        from framework_chi.cascade.rewrite import SKIP_REWRITE_TYPES, rewrite_query
+        import asyncio
+
+        from framework_chi.cascade.retrieval import dense_retrieve, dual_rerank, merge_passages
+        from framework_chi.cascade.rewrite import (
+            SKIP_REWRITE_TYPES,
+            negative_evidence_query,
+            pseudo_answer_text,
+        )
 
         llm = self._llm_client()
         embed = self._embed_client()
         qdrant = self._qdrant_client()
 
-        if item.question_type in SKIP_REWRITE_TYPES or item.question_type == "yesno":
-            rewritten = item.question
-        else:
-            rewritten = await rewrite_query(
+        pool_each = 30  # matches upstream `_dual_retrieve_rerank` pool size
+
+        # Pool 1: literal question
+        tasks = [
+            dense_retrieve(
+                embed, qdrant, item.question,
+                top_k=pool_each, collection=DENSE_COLLECTION,
+            ),
+        ]
+
+        # Pool 2: pseudo-answer retrieval (skipped on factoid)
+        pseudo = ""
+        if item.question_type not in SKIP_REWRITE_TYPES:
+            pseudo = await pseudo_answer_text(
                 llm, model_name=self.services.model_name, item=item,
             )
+            tasks.append(
+                dense_retrieve(
+                    embed, qdrant, pseudo,
+                    top_k=pool_each, collection=DENSE_COLLECTION,
+                )
+            )
 
-        passages = await dense_retrieve(
-            embed, qdrant, rewritten,
-            top_k=RETRIEVAL_TOP_K, collection=DENSE_COLLECTION,
-        )
-        negative = ""
+        # Pool 3: negative-evidence (yesno only)
+        neg_query = negative_evidence_query(item)
+        if neg_query:
+            tasks.append(
+                dense_retrieve(
+                    embed, qdrant, neg_query,
+                    top_k=pool_each, collection=DENSE_COLLECTION,
+                )
+            )
 
-        scores: list[float]
-        if passages:
+        pools = await asyncio.gather(*tasks)
+        merged = pools[0]
+        for p in pools[1:]:
+            merged = merge_passages(merged, p, limit=pool_each * 3)
+
+        # Rerank the merged pool by the ORIGINAL question (not the
+        # pseudo-answer) so the top-K reflects question-relevance.
+        if merged:
             scores = await dual_rerank(
-                self._rerank_client(), item.question, passages,
+                self._rerank_client(), item.question, merged,
                 top_k=RERANK_TOP_K,
             )
             order = sorted(
-                range(len(passages)),
+                range(len(merged)),
                 key=lambda i: -scores[i] if i < len(scores) else 0.0,
             )
-            ranked = [(passages[i], scores[i] if i < len(scores) else 0.0) for i in order]
+            ranked = [(merged[i], scores[i] if i < len(scores) else 0.0) for i in order]
             ranked = ranked[:RERANK_TOP_K]
             passages = [p for p, _ in ranked]
             scores = [s for _, s in ranked]
         else:
-            scores = []
+            passages, scores = [], []
 
         return RetrievalContext(
             passages=passages,
             rerank_scores=scores,
-            rewritten_query=rewritten,
-            negative_query=negative,
+            rewritten_query=pseudo,
+            negative_query=neg_query,
         )
 
     async def _fast_path(self, item: Item, ctx: RetrievalContext) -> FastPathOutcome:
