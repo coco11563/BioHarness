@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT / "src"))
 async def _record(args: argparse.Namespace) -> int:
     from framework_eval.loader import load_from_hub
 
-    from framework_chi.cascade.client import PipelineCascadeClient
+    from bioharness.cascade.client import PipelineCascadeClient
 
     client = PipelineCascadeClient()
     output = Path(args.output)

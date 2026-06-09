@@ -1,6 +1,6 @@
-# XCompass_Chi
+# bioHarness
 
-**The {framework}^χ headline method** —
+**The bioHarness headline method** —
 ``pipeline`` — packaged as a registered
 ``framework_eval.methods`` plugin so the
 [XCompass_Eval_Framework](https://github.com/coco11563/XCompass_Eval_Framework)
@@ -8,21 +8,21 @@ harness can score it on the
 [Shaow/GeneKnowledgeEval](https://huggingface.co/datasets/Shaow/GeneKnowledgeEval)
 benchmark (8 datasets, 19,474 items, 7 question types).
 
-Headline reproduced by the {framework} paper:
+Headline reproduced by the bioHarness paper:
 
 | Method | Items | Binary acc | Continuous mean |
 | --- | ---: | ---: | ---: |
-| **{framework}^χ** (`pipeline`) | **19,302** | **0.766** | **0.691** |
+| **bioHarness** (`pipeline`) | **19,302** | **0.766** | **0.691** |
 
-> **Placeholders.** This release uses the literal tokens `{framework}` and
-> `{model}` wherever a paper-specific name would otherwise appear. Replace
-> them with the names that match your own deployment when reading the docs.
+> **Placeholder.** `{model}` is a placeholder for your inference backend —
+> the served LLM (e.g. a 32–70 B chat model). Replace it with your own model
+> identity when reading the docs and setting `BIOHARNESS_MODEL_NAME`.
 
 ---
 
 ## Architecture
 
-`{framework}^χ` is a **context-assembly + RLM + adaptive cascade** pipeline:
+`bioHarness` is a **context-assembly + RLM + adaptive cascade** pipeline:
 
 1. **Adaptive context assembly.** Dense retrieval against a 27.3 M PubMed
    index, optional dual retrieval (positive + negative) for yes/no items,
@@ -51,41 +51,41 @@ Headline reproduced by the {framework} paper:
 ### 1. Install
 
 ```bash
-pip install framework-eval framework-chi
+pip install framework-eval bioharness
 ```
 
 If you are working from source:
 
 ```bash
-git clone https://github.com/coco11563/XCompass_Chi.git
-cd XCompass_Chi
+git clone https://github.com/coco11563/bioHarness.git
+cd bioHarness
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
 ### 2. Stand up the inference services
 
-`framework-chi` does NOT bundle the LLM, embedding, reranker, Qdrant, or
+`bioharness` does NOT bundle the LLM, embedding, reranker, Qdrant, or
 Postgres services it needs. The full requirements are documented in
 `docs/infra.md`. Once they are reachable, point the framework at them via
 environment variables:
 
 ```bash
-export FRAMEWORK_LLM_URL=http://127.0.0.1:8000/v1
-export FRAMEWORK_EMBED_URL=http://127.0.0.1:8002/v1
-export FRAMEWORK_RERANK_URL=http://127.0.0.1:8001/v1
-export FRAMEWORK_QDRANT_URL=http://127.0.0.1:13335
-export FRAMEWORK_PUBMED_PG=postgresql://localhost:5432/paper-graph-pubmed
-export FRAMEWORK_PAPERGRAPH_PG=postgresql://localhost:5432/papergraph
-export FRAMEWORK_MODEL_NAME={model}
+export BIOHARNESS_LLM_URL=http://127.0.0.1:8000/v1
+export BIOHARNESS_EMBED_URL=http://127.0.0.1:8002/v1
+export BIOHARNESS_RERANK_URL=http://127.0.0.1:8001/v1
+export BIOHARNESS_QDRANT_URL=http://127.0.0.1:13335
+export BIOHARNESS_PUBMED_PG=postgresql://localhost:5432/paper-graph-pubmed
+export BIOHARNESS_PAPERGRAPH_PG=postgresql://localhost:5432/papergraph
+export BIOHARNESS_MODEL_NAME={model}
 ```
 
-`framework-chi doctor` runs a pre-flight connectivity check against every
+`bioharness doctor` runs a pre-flight connectivity check against every
 service and prints which are reachable and which are not.
 
 ### 3. Score the benchmark
 
-`framework-chi` is registered as the ``pipeline`` plugin under
+`bioharness` is registered as the ``pipeline`` plugin under
 ``framework_eval.methods``. Run it through the harness:
 
 ```bash
@@ -93,9 +93,9 @@ framework-eval run \
   --method pipeline \
   --datasets bioasq scihorizon-gene geneturing medmcqa \
              medqa_us medqa_taiwan medqa_mainland pubmedqa_pqal_test \
-  --output runs/chi/
+  --output runs/bioharness/
 
-framework-eval score --run runs/chi/ --output runs/chi/scores/
+framework-eval score --run runs/bioharness/ --output runs/bioharness/scores/
 ```
 
 Expected: binary accuracy within ±2.5 pp of the paper headline (0.766)
@@ -140,7 +140,7 @@ headline configuration without forking the code. Pass them through
 ## Repository layout
 
 ```
-XCompass_Chi/
+bioHarness/
 ├── MANIFEST.toml                # method-side reproducibility manifest
 ├── README.md
 ├── LICENSE
@@ -149,12 +149,12 @@ XCompass_Chi/
 ├── CONTRIBUTING.md
 ├── pyproject.toml
 ├── verify.py                    # offline cached smoke + --live re-run
-├── src/framework_chi/
+├── src/bioharness/
 │   ├── cascade/                 # PipelineCascadeClient (entry point)
 │   ├── agent/                   # REPL agent escalation path
 │   ├── tools/                   # gene resolver, UniProt, GO, Disco wrappers
 │   ├── clients/                 # OpenAI-compatible LLM/embed/rerank clients
-│   └── cli/                     # framework-chi CLI (doctor, etc.)
+│   └── cli/                     # bioharness CLI (doctor, etc.)
 ├── tests/                       # unit + integration tests
 ├── docs/
 │   ├── infra.md                 # service requirements + setup
@@ -176,4 +176,4 @@ Apache-2.0 (see `LICENSE`).
 
 ## Contact
 
-Issues + PRs welcome at <https://github.com/coco11563/XCompass_Chi/issues>.
+Issues + PRs welcome at <https://github.com/coco11563/bioHarness/issues>.

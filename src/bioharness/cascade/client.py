@@ -1,4 +1,4 @@
-"""PipelineCascadeClient: the {framework}^χ headline method.
+"""PipelineCascadeClient: the bioHarness headline method.
 
 Pipeline shape (single best-config configuration, no ablation flags):
 
@@ -34,7 +34,7 @@ from typing import Any
 
 from framework_eval.eval.types import Item, Prediction, QuestionType
 
-from framework_chi.config import (
+from bioharness.config import (
     CASCADE_THRESHOLD,
     DENSE_COLLECTION,
     RERANK_TOP_K,
@@ -81,7 +81,7 @@ class AgentOutcome:
 
 
 class PipelineCascadeClient:
-    """Headline {framework}^χ method registered as ``pipeline``."""
+    """Headline bioHarness method registered as ``pipeline``."""
 
     name = "pipeline"
 
@@ -173,8 +173,8 @@ class PipelineCascadeClient:
         """
         import asyncio
 
-        from framework_chi.cascade.retrieval import dense_retrieve, dual_rerank, merge_passages
-        from framework_chi.cascade.rewrite import (
+        from bioharness.cascade.retrieval import dense_retrieve, dual_rerank, merge_passages
+        from bioharness.cascade.rewrite import (
             SKIP_REWRITE_TYPES,
             negative_evidence_query,
             pseudo_answer_text,
@@ -249,7 +249,7 @@ class PipelineCascadeClient:
 
     async def _fast_path(self, item: Item, ctx: RetrievalContext) -> FastPathOutcome:
         """Constrained generation + logprob + grounded check."""
-        from framework_chi.cascade.constrained import (
+        from bioharness.cascade.constrained import (
             constrained_generate,
             extract_constrained_answer,
         )
@@ -273,18 +273,18 @@ class PipelineCascadeClient:
         """REPL agent escalation hook.
 
         Resolution order:
-          1. If ``FRAMEWORK_PRODUCTION_SRC`` points at a working
+          1. If ``BIOHARNESS_PRODUCTION_SRC`` points at a working
              PaperAsKnowledgeGraph-RAG tree, delegate to the full
              production ``BiomedicalRLMPipeline`` (multi-iteration REPL +
              tool dispatch). This is the "exactly aligned" path.
           2. Otherwise fall back to the in-tree single-pass agent that
              ships with this package.
         """
-        from framework_chi.agent.production_adapter import (
+        from bioharness.agent.production_adapter import (
             production_agent_available,
             run_production_agent,
         )
-        from framework_chi.agent.repl_agent import run_agent
+        from bioharness.agent.repl_agent import run_agent
 
         if production_agent_available():
             return await run_production_agent(
@@ -309,7 +309,7 @@ class PipelineCascadeClient:
         """Constrained re-judgment that sees the agent's free-form answer,
         the original retrieved evidence, AND any tool evidence collected
         during escalation. Mirrors the upstream rejudge composition."""
-        from framework_chi.cascade.constrained import extract_constrained_answer, rejudge
+        from bioharness.cascade.constrained import extract_constrained_answer, rejudge
 
         text = await rejudge(
             self._llm_client(),
@@ -360,28 +360,28 @@ class PipelineCascadeClient:
 
     def _llm_client(self):
         if self._llm is None:
-            from framework_chi.clients.llm import LLMClient
+            from bioharness.clients.llm import LLMClient
 
             self._llm = LLMClient(self.services.llm_url, self.services.api_key)
         return self._llm
 
     def _embed_client(self):
         if self._embed is None:
-            from framework_chi.clients.embed import EmbedClient
+            from bioharness.clients.embed import EmbedClient
 
             self._embed = EmbedClient(self.services.embed_url, self.services.api_key)
         return self._embed
 
     def _rerank_client(self):
         if self._rerank is None:
-            from framework_chi.clients.rerank import RerankClient
+            from bioharness.clients.rerank import RerankClient
 
             self._rerank = RerankClient(self.services.rerank_url, self.services.api_key)
         return self._rerank
 
     def _qdrant_client(self):
         if self._qdrant is None:
-            from framework_chi.clients.qdrant import QdrantClient
+            from bioharness.clients.qdrant import QdrantClient
 
             self._qdrant = QdrantClient(self.services.qdrant_url)
         return self._qdrant
@@ -404,7 +404,7 @@ class StubPipelineCascadeClient(PipelineCascadeClient):
         self._fixed_answer = fixed_answer
 
     async def generate(self, item: Item) -> Prediction:
-        from framework_chi.cascade.constrained import extract_constrained_answer
+        from bioharness.cascade.constrained import extract_constrained_answer
 
         return Prediction(
             item_id=item.id,

@@ -1,6 +1,6 @@
 """Production REPL-agent adapter.
 
-The default ``run_agent`` shipped under ``framework_chi.agent.repl_agent``
+The default ``run_agent`` shipped under ``bioharness.agent.repl_agent``
 is a single-pass LLM call; it is sufficient for ``yesno`` / ``mcq`` /
 ``summary`` items but underperforms on ``list`` and entity-lookup
 ``factoid`` items where the production cascade uses the multi-iteration
@@ -10,11 +10,11 @@ When the user has the production source tree available locally, this
 adapter wires the real pipeline into Chi's ``_agent`` hook so the agent
 escalation is **identical** to the headline run:
 
-  export FRAMEWORK_PRODUCTION_SRC=/path/to/PaperAsKnowledgeGraph-RAG
+  export BIOHARNESS_PRODUCTION_SRC=/path/to/PaperAsKnowledgeGraph-RAG
 
 The adapter then loads ``src.rlm.pipeline.BiomedicalRLMPipeline`` and
-delegates to it. When ``FRAMEWORK_PRODUCTION_SRC`` is unset, callers
-should keep using the simpler ``framework_chi.agent.repl_agent.run_agent``
+delegates to it. When ``BIOHARNESS_PRODUCTION_SRC`` is unset, callers
+should keep using the simpler ``bioharness.agent.repl_agent.run_agent``
 default.
 """
 
@@ -27,8 +27,8 @@ from typing import Any
 
 from framework_eval.eval.types import Item
 
-from framework_chi.cascade.client import AgentOutcome
-from framework_chi.config import ServiceConfig
+from bioharness.cascade.client import AgentOutcome
+from bioharness.config import ServiceConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,13 +42,13 @@ def _production_src_root() -> str | None:
     """Resolve the path that should be added to ``sys.path``.
 
     Order of precedence:
-      1. ``FRAMEWORK_PRODUCTION_SRC`` env var (must point at the directory
+      1. ``BIOHARNESS_PRODUCTION_SRC`` env var (must point at the directory
          that contains ``src/rlm/pipeline.py``).
       2. A sibling ``PaperAsKnowledgeGraph-RAG`` directory next to the
          current working directory (covers a common dev layout).
     Returns ``None`` if neither resolves.
     """
-    explicit = os.environ.get("FRAMEWORK_PRODUCTION_SRC")
+    explicit = os.environ.get("BIOHARNESS_PRODUCTION_SRC")
     if explicit:
         return explicit
     cwd = os.getcwd()
@@ -75,7 +75,7 @@ def _load_production_pipeline() -> tuple[Any, Any]:
     root = _production_src_root()
     if root is None:
         raise RuntimeError(
-            "FRAMEWORK_PRODUCTION_SRC is not set and no sibling "
+            "BIOHARNESS_PRODUCTION_SRC is not set and no sibling "
             "PaperAsKnowledgeGraph-RAG directory was found. The production "
             "REPL agent cannot be loaded; set the env var or install the "
             "production source tree."
@@ -98,7 +98,7 @@ def _load_production_pipeline() -> tuple[Any, Any]:
 
 
 def production_agent_available() -> bool:
-    """Return True if ``FRAMEWORK_PRODUCTION_SRC`` resolves to a usable tree."""
+    """Return True if ``BIOHARNESS_PRODUCTION_SRC`` resolves to a usable tree."""
     try:
         _load_production_pipeline()
         return True

@@ -9,22 +9,41 @@ The one user-facing knob is ``force_agent``: when True, every item
 bypasses the constrained-generation fast path and is routed through the
 agent escalation + re-judgment stages. Useful for ablation runs that
 want to measure the agent's contribution in isolation; off by default
-because the cascade fast-path is faster and (on the {framework}^χ
+because the cascade fast-path is faster and (on the bioHarness
 headline) more accurate on average.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 
+LOGGER = logging.getLogger(__name__)
+
+
+def _legacy(name: str) -> str | None:
+    """Deprecated ``FRAMEWORK_*`` alias of a ``BIOHARNESS_*`` var (warns once)."""
+    if not name.startswith("BIOHARNESS_"):
+        return None
+    old = "FRAMEWORK_" + name[len("BIOHARNESS_"):]
+    val = os.environ.get(old)
+    if val is not None:
+        LOGGER.warning("%s is deprecated; use %s instead", old, name)
+    return val
+
 
 def _env(name: str, default: str) -> str:
-    return os.environ.get(name, default)
+    val = os.environ.get(name)
+    if val is None:
+        val = _legacy(name)
+    return default if val is None else val
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
+    if raw is None:
+        raw = _legacy(name)
     if raw is None:
         return default
     return raw.strip().lower() in ("1", "true", "yes", "on")
@@ -45,21 +64,21 @@ class ServiceConfig:
     @classmethod
     def from_env(cls) -> "ServiceConfig":
         return cls(
-            llm_url     = _env("FRAMEWORK_LLM_URL",     "http://127.0.0.1:8000/v1"),
-            embed_url   = _env("FRAMEWORK_EMBED_URL",   "http://127.0.0.1:8002/v1"),
-            rerank_url  = _env("FRAMEWORK_RERANK_URL",  "http://127.0.0.1:8001/v1"),
-            qdrant_url  = _env("FRAMEWORK_QDRANT_URL",  "http://127.0.0.1:13335"),
+            llm_url     = _env("BIOHARNESS_LLM_URL",     "http://127.0.0.1:8000/v1"),
+            embed_url   = _env("BIOHARNESS_EMBED_URL",   "http://127.0.0.1:8002/v1"),
+            rerank_url  = _env("BIOHARNESS_RERANK_URL",  "http://127.0.0.1:8001/v1"),
+            qdrant_url  = _env("BIOHARNESS_QDRANT_URL",  "http://127.0.0.1:13335"),
             pubmed_pg_url = _env(
-                "FRAMEWORK_PUBMED_PG",
+                "BIOHARNESS_PUBMED_PG",
                 "postgresql://localhost:5432/paper-graph-pubmed",
             ),
             papergraph_pg_url = _env(
-                "FRAMEWORK_PAPERGRAPH_PG",
+                "BIOHARNESS_PAPERGRAPH_PG",
                 "postgresql://localhost:5432/papergraph",
             ),
-            model_name  = _env("FRAMEWORK_MODEL_NAME", "{model}"),
-            api_key     = _env("FRAMEWORK_API_KEY",    "EMPTY"),
-            force_agent = _env_bool("FRAMEWORK_FORCE_AGENT", False),
+            model_name  = _env("BIOHARNESS_MODEL_NAME", "{model}"),
+            api_key     = _env("BIOHARNESS_API_KEY",    "EMPTY"),
+            force_agent = _env_bool("BIOHARNESS_FORCE_AGENT", False),
         )
 
     def reachable_summary(self) -> dict[str, str]:
@@ -73,7 +92,7 @@ class ServiceConfig:
         }
 
 
-# Fixed cascade constants used by the {framework}^χ headline configuration.
+# Fixed cascade constants used by the bioHarness headline configuration.
 # These were tuned together with the prompt templates; do not edit without
 # re-recording the cached smoke set.
 CASCADE_THRESHOLD     = 0.7      # logprob-derived confidence below which we escalate

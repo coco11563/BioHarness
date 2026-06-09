@@ -1,8 +1,8 @@
 # Live-stack validation against the production headline run
 
 This document captures the most recent end-to-end validation of
-`XCompass_Chi` (the open-source cascade) against the production
-{framework}^χ snapshot reported in the paper. Both runs used the same
+`bioHarness` (the open-source cascade) against the production
+bioHarness snapshot reported in the paper. Both runs used the same
 items from `Shaow/GeneKnowledgeEval`; the difference is the inference
 stack:
 
@@ -93,7 +93,7 @@ is 180 / 193 = **0.933** (gap −2.2 pp).
 
 - **factoid (entity-lookup)** — the production agent escalates these
   to a tool-aware pipeline that queries the gene resolver, UniProt,
-  and GO. Implementing the `framework_chi.tools.REGISTRY` callables
+  and GO. Implementing the `bioharness.tools.REGISTRY` callables
   and wiring them into a subclass that overrides `_agent` is the
   expected fix; the registry contract is defined but stubbed in this
   release.

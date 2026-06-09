@@ -7,7 +7,7 @@ endpoint is rate-limited to ~3 requests per second per IP, so the
 implementation includes a small in-process throttle.
 
 This tool is the open-source equivalent of the entity-lookup primitive
-used by the {framework}^χ headline agent on GeneTuring factoid items.
+used by the bioHarness headline agent on GeneTuring factoid items.
 The output schema mirrors the upstream ``gene_resolve`` registry entry
 so the rejudge stage can interpret it without further translation.
 """

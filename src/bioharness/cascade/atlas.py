@@ -2,39 +2,48 @@
 
 The SciHorizon HGKB ``expression`` subtask (gene -> ``tissue_list``) is a
 structured-fact task scored by exact-string set-F1 over a fixed ~27-tissue
-vocabulary. Two design choices make it work, and together they are the ``D``
-component of {framework}^chi:
+vocabulary. The ``D`` component has two halves:
 
-1. **Format / recall prompt.** A recall-oriented prompt that lists tissues from
-   the fixed allowed vocabulary and returns a parseable JSON array. The upstream
-   free-text / comma-separated expression prompt produced 0/210 parseable
-   answers and ~6% set-F1 — almost entirely a formatting artifact, not a
-   knowledge gap.
+1. **Format / recall prompt (ships and runs by default).** A recall-oriented
+   prompt that lists tissues from the fixed allowed vocabulary and returns a
+   parseable JSON array. The upstream free-text / comma-separated expression
+   prompt produced 0/210 parseable answers and ~6% set-F1 — almost entirely a
+   formatting artifact, not a knowledge gap. This half is wired into the cascade
+   (see ``constrained.py``) and is what the default ``-D`` path runs.
 
-2. **Atlas-as-context (+D).** When the atlas is enabled, the gene's Human
-   Protein Atlas (HPA) bulk tissue expression is injected as a *supplementary*
-   reference block. The model reconciles it with its parametric knowledge — it
-   is NOT forced to copy the atlas.
+2. **Atlas-as-context (+D) — public integration hook, NOT bundled infra.**
+   ``build_expression_messages(question, atlas_rows=...)`` is the integration
+   point: a caller that has an HPA backend renders the gene's bulk tissue
+   expression with ``atlas_rows_from_hpa(...)`` and passes it in, and the model
+   reconciles it with its parametric knowledge (it is NOT forced to copy the
+   atlas). **This package does not ship an HPA/Disco client**, so the default
+   cascade runs the ``-D`` (format-fixed, no-atlas) path; enabling ``+D``
+   requires wiring an HPA backend in your deployment.
 
-Deployed pipeline ablation (SciHorizon expression, non-empty GT, n=175,
-benchmark expression set-F1, threshold 0.3)::
+Ablation that motivates both halves (SciHorizon expression, non-empty GT,
+n=175, benchmark expression set-F1, threshold 0.3)::
 
-    Ours_{-D} (no atlas)  65.3   [60.5, 70.2]
-    Ours (+D, atlas ctx)  78.8   [74.4, 83.1]   +13.5 pp, McNemar p < 1e-12
-    atlas-only (HPA)      73.9               (+D also beats a direct lookup)
+    upstream free-text prompt          ~6.0          (formatting artifact)
+    -D  (format/recall, ships here)    65.3  [60.5, 70.2]   <- default path
+    +D  (atlas-as-context)             78.8  [74.4, 83.1]   +13.5 pp vs -D,
+                                                            McNemar p < 1e-12
+    atlas-only (direct HPA lookup)     73.9               (+D also beats it)
 
-The expression GT is derived from **NCBI Gene** expression annotations while the
-atlas is **HPA** — two independent bulk-RNA databases, so +D is legitimate
+So most of the gain over the broken upstream prompt is the format fix (ships);
+the further +13.5 pp needs the atlas backend (hook provided here). The
+expression GT is derived from **NCBI Gene** annotations while the atlas is
+**HPA** — two independent bulk-RNA databases, so +D is legitimate
 cross-database structured-knowledge retrieval (correlated ~0.9 by shared
-modality), not feeding the answer key. The gain reflects "a structured
-expression DB helps", not a capability unique to single-cell resolution.
+modality), not feeding the answer key, and the effect is not unique to
+single-cell resolution.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 # HPA consensus tissue vocabulary used by the SciHorizon expression GT (27 organs).
 EXPRESSION_TISSUE_VOCAB: tuple[str, ...] = (
@@ -118,17 +127,33 @@ def build_expression_messages(
 
 
 def parse_expression_tissues(text: str) -> list[str]:
-    """Parse a model answer into a deduped tissue list restricted to the vocab."""
+    """Parse a model answer into a deduped tissue list restricted to the vocab.
+
+    Accepts a JSON array, a ``{"tissue_list": [...]}`` object, or a degenerate
+    comma / newline / semicolon-separated fallback. A leading prose prefix
+    before the array is tolerated (the first ``[...]`` span is tried first).
+    ``"low expression"`` is allowed through as the HPA / GT no-expression
+    sentinel (genes whose ground-truth tissue list is empty).
+    """
     text = (text or "").strip()
     cand: list[str] = []
-    try:
-        obj = json.loads(text)
+    # Try the first JSON array span (handles "Here: [...]"), then the whole text.
+    match = re.search(r"\[.*\]", text, re.S)
+    for candidate in ((match.group(0) if match else None), text):
+        if not candidate:
+            continue
+        try:
+            obj = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
         if isinstance(obj, list):
             cand = [str(x).lower().strip() for x in obj]
         elif isinstance(obj, dict) and "tissue_list" in obj:
             cand = [str(x).lower().strip() for x in obj["tissue_list"]]
-    except json.JSONDecodeError:
-        cand = [t.lower().strip() for t in re.sub(r"[\[\]\"{}]", " ", text).split(",") if t.strip()]
+        break
+    if not cand:  # last resort: split on commas, newlines, or semicolons
+        stripped = re.sub(r"[\[\]\"{}]", " ", text)
+        cand = [t.lower().strip() for t in re.split(r"[,\n;]+", stripped) if t.strip()]
     allowed = set(EXPRESSION_TISSUE_VOCAB) | {"low expression"}
     out, seen = [], set()
     for t in cand:

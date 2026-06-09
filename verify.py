@@ -1,4 +1,4 @@
-"""Reproducibility gate for XCompass_Chi.
+"""Reproducibility gate for bioHarness.
 
 Two operating modes:
 
@@ -115,9 +115,9 @@ def _check_cached_smoke(manifest: dict) -> tuple[bool, str]:
 async def _live_smoke(manifest: dict) -> tuple[bool, str]:
     """Construct the cascade client and run a single sanity item."""
     try:
-        from framework_chi.cascade.client import PipelineCascadeClient
+        from bioharness.cascade.client import PipelineCascadeClient
     except ImportError as exc:
-        return False, f"framework-chi not importable: {exc}"
+        return False, f"bioharness not importable: {exc}"
 
     client = PipelineCascadeClient()
     try:
@@ -162,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         print(manifest.get("manifest_id", "unknown"))
         return 0
 
-    print(f"XCompass_Chi verify.py — manifest {manifest['manifest_id']}")
+    print(f"bioHarness verify.py — manifest {manifest['manifest_id']}")
     print(f"  headline method ........ {manifest['headline']['method_id']}")
     print(f"  framework-eval pin ..... {manifest['framework_eval']['required_version_range']}")
 

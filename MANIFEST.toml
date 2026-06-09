@@ -1,7 +1,7 @@
-# XCompass_Chi — headline-method manifest
+# bioHarness — headline-method manifest
 #
-# This package implements ``{framework}^χ`` — the headline-row method
-# (id ``pipeline``) reported in the {framework} paper.
+# This package implements ``bioHarness`` — the headline-row method
+# (id ``pipeline``) reported in the bioHarness paper.
 # It is registered as a plugin under
 # ``framework_eval.methods`` so the eval harness in
 # ``coco11563/XCompass_Eval_Framework`` can score it directly.
@@ -16,7 +16,7 @@
 # the docs that reference this manifest.
 
 schema_version = "1"
-manifest_id    = "framework-chi-pipeline-2026-04-28"
+manifest_id    = "bioharness-pipeline-2026-04-28"
 created_utc    = "2026-04-28T00:00:00Z"
 
 # ---------------------------------------------------------------------------
@@ -71,10 +71,10 @@ postgres             = "PubMed metadata + full-text mirrors (read-only)"
 disco_atlas          = "Optional single-cell expression atlas; required only with --enable-disco"
 
 [infra.env_vars]
-FRAMEWORK_LLM_URL          = "default http://127.0.0.1:8000/v1"
-FRAMEWORK_EMBED_URL        = "default http://127.0.0.1:8002/v1"
-FRAMEWORK_RERANK_URL       = "default http://127.0.0.1:8001/v1"
-FRAMEWORK_QDRANT_URL       = "default http://127.0.0.1:13335"
-FRAMEWORK_PUBMED_PG        = "default postgresql://localhost:5432/paper-graph-pubmed"
-FRAMEWORK_PAPERGRAPH_PG    = "default postgresql://localhost:5432/papergraph"
-FRAMEWORK_MODEL_NAME       = "default {model}"
+BIOHARNESS_LLM_URL          = "default http://127.0.0.1:8000/v1"
+BIOHARNESS_EMBED_URL        = "default http://127.0.0.1:8002/v1"
+BIOHARNESS_RERANK_URL       = "default http://127.0.0.1:8001/v1"
+BIOHARNESS_QDRANT_URL       = "default http://127.0.0.1:13335"
+BIOHARNESS_PUBMED_PG        = "default postgresql://localhost:5432/paper-graph-pubmed"
+BIOHARNESS_PAPERGRAPH_PG    = "default postgresql://localhost:5432/papergraph"
+BIOHARNESS_MODEL_NAME       = "default {model}"

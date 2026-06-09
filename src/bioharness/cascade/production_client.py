@@ -1,6 +1,6 @@
 """Full-delegation cascade client.
 
-When the production source tree is available (``FRAMEWORK_PRODUCTION_SRC``
+When the production source tree is available (``BIOHARNESS_PRODUCTION_SRC``
 or sibling-detection), this class wraps the *entire* in-house production
 cascade class from ``scripts/run_unified_benchmark.py`` and adapts it
 to the ``framework_eval.plugins.QAClient`` protocol. Every stage —
@@ -10,7 +10,7 @@ agent escalation, and re-judgment — is the production code path, not a
 re-implementation.
 
 Use this client when "exactly aligned" matters. The simpler in-tree
-``PipelineCascadeClient`` in :mod:`framework_chi.cascade.client` remains
+``PipelineCascadeClient`` in :mod:`bioharness.cascade.client` remains
 the default for fully self-contained installs that do not have the
 production source tree available.
 """
@@ -25,7 +25,7 @@ from typing import Any
 
 from framework_eval.eval.types import Item, Prediction
 
-from framework_chi.agent.production_adapter import _production_src_root
+from bioharness.agent.production_adapter import _production_src_root
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def _load_production_pipeline_class() -> type[Any]:
     root = _production_src_root()
     if root is None:
         raise RuntimeError(
-            "FRAMEWORK_PRODUCTION_SRC is not set and no sibling "
+            "BIOHARNESS_PRODUCTION_SRC is not set and no sibling "
             "PaperAsKnowledgeGraph-RAG directory was found."
         )
     if root not in sys.path:

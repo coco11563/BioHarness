@@ -1,9 +1,9 @@
-# Infrastructure requirements for `XCompass_Chi`
+# Infrastructure requirements for `bioHarness`
 
-`framework-chi` does not bundle the inference services it relies on.
+`bioharness` does not bundle the inference services it relies on.
 Every endpoint listed below must be reachable before
 `framework-eval run --method pipeline ...`
-can produce headline-grade numbers. Run `framework-chi doctor` to
+can produce headline-grade numbers. Run `bioharness doctor` to
 self-check connectivity.
 
 ## Required services
@@ -21,27 +21,27 @@ self-check connectivity.
 
 | Service | Env var | Required when |
 | --- | --- | --- |
-| Disco scRNA atlas | `FRAMEWORK_DISCO_URL` | `--enable-disco` is set |
+| Disco scRNA atlas | `BIOHARNESS_DISCO_URL` | `--enable-disco` is set |
 
 ## Environment variable summary
 
 ```bash
-export FRAMEWORK_LLM_URL=http://127.0.0.1:8000/v1
-export FRAMEWORK_EMBED_URL=http://127.0.0.1:8002/v1
-export FRAMEWORK_RERANK_URL=http://127.0.0.1:8001/v1
-export FRAMEWORK_QDRANT_URL=http://127.0.0.1:13335
-export FRAMEWORK_PUBMED_PG=postgresql://user:pass@localhost:5432/paper-graph-pubmed
-export FRAMEWORK_PAPERGRAPH_PG=postgresql://user:pass@localhost:5432/papergraph
-export FRAMEWORK_MODEL_NAME={model}
-export FRAMEWORK_API_KEY=EMPTY            # vLLM accepts any non-empty value
+export BIOHARNESS_LLM_URL=http://127.0.0.1:8000/v1
+export BIOHARNESS_EMBED_URL=http://127.0.0.1:8002/v1
+export BIOHARNESS_RERANK_URL=http://127.0.0.1:8001/v1
+export BIOHARNESS_QDRANT_URL=http://127.0.0.1:13335
+export BIOHARNESS_PUBMED_PG=postgresql://user:pass@localhost:5432/paper-graph-pubmed
+export BIOHARNESS_PAPERGRAPH_PG=postgresql://user:pass@localhost:5432/papergraph
+export BIOHARNESS_MODEL_NAME={model}
+export BIOHARNESS_API_KEY=EMPTY            # vLLM accepts any non-empty value
 # Optional:
-export FRAMEWORK_DISCO_URL=http://127.0.0.1:8443
+export BIOHARNESS_DISCO_URL=http://127.0.0.1:8443
 ```
 
 ## Pre-flight check
 
 ```bash
-framework-chi doctor
+bioharness doctor
 ```
 
 Output is one line per service with reachability status; non-zero exit
@@ -54,12 +54,12 @@ The `paper-full` collection is built from the upstream PubMed dump.
 Building it is out of scope for this repository; refer to the embedding
 provider's documentation for an end-to-end recipe. As long as the
 collection name, vector size (1024), and payload field `text` match the
-expectations in `framework_chi/clients/qdrant.py`, the cascade pipeline
+expectations in `bioharness/clients/qdrant.py`, the cascade pipeline
 will work.
 
 ## Resource sizing
 
-The numbers below are what the {framework}^χ paper used; smaller
+The numbers below are what the bioHarness paper used; smaller
 deployments work but may not reproduce the headline accuracy.
 
 | Component | Memory | Disk |

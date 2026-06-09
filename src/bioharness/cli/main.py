@@ -1,4 +1,4 @@
-"""framework-chi: doctor + config introspection.
+"""bioharness: doctor + config introspection.
 
 The actual scoring entry point is ``framework-eval run --method
 pipeline ...``; this CLI exists for infrastructure self-checks and
@@ -16,8 +16,8 @@ from dataclasses import asdict
 
 import httpx
 
-from framework_chi import __version__
-from framework_chi.config import (
+from bioharness import __version__
+from bioharness.config import (
     CASCADE_THRESHOLD,
     DENSE_COLLECTION,
     MAX_AGENT_ITERATIONS,
@@ -64,7 +64,7 @@ async def _async_skip() -> tuple[bool, str]:
 def _cmd_doctor(_args: argparse.Namespace) -> int:
     services = ServiceConfig.from_env()
     summary = services.reachable_summary()
-    print(f"framework-chi {__version__} — service connectivity check")
+    print(f"bioharness {__version__} — service connectivity check")
     fail = 0
 
     async def main_async() -> None:
@@ -120,8 +120,8 @@ def _cmd_config(_args: argparse.Namespace) -> int:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="framework-chi",
-        description="{framework}^χ — adaptive cascade utilities.",
+        prog="bioharness",
+        description="bioHarness — adaptive cascade utilities.",
     )
     parser.add_argument("--version", action="version", version=__version__)
 

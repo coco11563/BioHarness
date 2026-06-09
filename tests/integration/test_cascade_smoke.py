@@ -6,7 +6,7 @@ import asyncio
 
 from framework_eval.eval.types import Item
 
-from framework_chi.cascade.client import StubPipelineCascadeClient
+from bioharness.cascade.client import StubPipelineCascadeClient
 
 
 def test_stub_round_trip() -> None:

@@ -8,14 +8,14 @@ import pytest
 
 from framework_eval.eval.types import Item
 
-from framework_chi.cascade.client import (
+from bioharness.cascade.client import (
     AgentOutcome,
     FastPathOutcome,
     RetrievalContext,
     StubPipelineCascadeClient,
     PipelineCascadeClient,
 )
-from framework_chi.config import ServiceConfig
+from bioharness.config import ServiceConfig
 
 
 def _item(qtype: str = "yesno", **kw: Any) -> Item:

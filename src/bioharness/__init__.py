@@ -1,4 +1,4 @@
-"""{framework}^χ — adaptive cascade for biomedical QA.
+"""bioHarness — adaptive cascade for biomedical QA.
 
 Public surface is intentionally narrow: the PipelineCascadeClient
 implements the framework-eval QAClient protocol and is registered as

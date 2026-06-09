@@ -1,10 +1,10 @@
-# Contributing to XCompass_Chi
+# Contributing to bioHarness
 
 ## Development setup
 
 ```bash
-git clone https://github.com/coco11563/XCompass_Chi.git
-cd XCompass_Chi
+git clone https://github.com/coco11563/bioHarness.git
+cd bioHarness
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pre-commit install
@@ -33,7 +33,7 @@ any of:
 
 you must also:
 
-1. Bump the framework-chi version in `pyproject.toml`.
+1. Bump the bioharness version in `pyproject.toml`.
 2. Re-record the offline cached smoke set with `scripts/build_cached_smoke.py`
    and update `golden/cached_smoke.jsonl` + the `[smoke_set]` hash in
    `MANIFEST.toml`.
@@ -48,6 +48,6 @@ local tooling names, or credentials. The full list lives in that script.
 
 ## Reporting issues
 
-Open an issue at <https://github.com/coco11563/XCompass_Chi/issues>
+Open an issue at <https://github.com/coco11563/bioHarness/issues>
 with the failing command, full traceback, OS / Python version, and the
 manifest id (`python verify.py --print-manifest-id`).

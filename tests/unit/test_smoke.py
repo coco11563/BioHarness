@@ -20,14 +20,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_package_imports() -> None:
-    import framework_chi
-    import framework_chi.cascade
-    import framework_chi.agent
-    import framework_chi.clients
-    import framework_chi.cli
-    import framework_chi.config
-    import framework_chi.tools
-    assert framework_chi.__version__
+    import bioharness
+    import bioharness.cascade
+    import bioharness.agent
+    import bioharness.clients
+    import bioharness.cli
+    import bioharness.config
+    import bioharness.tools
+    assert bioharness.__version__
 
 
 def test_manifest_parses() -> None:
@@ -38,7 +38,7 @@ def test_manifest_parses() -> None:
 
 
 def test_cli_version() -> None:
-    from framework_chi.cli.main import main
+    from bioharness.cli.main import main
 
     buf = io.StringIO()
     with redirect_stdout(buf):
@@ -49,7 +49,7 @@ def test_cli_version() -> None:
 
 
 def test_cli_config_emits_json() -> None:
-    from framework_chi.cli.main import main
+    from bioharness.cli.main import main
 
     buf = io.StringIO()
     with redirect_stdout(buf):

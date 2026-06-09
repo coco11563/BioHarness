@@ -1,7 +1,7 @@
 """Constrained answer generation, per-type prompts, and extraction.
 
 Prompt templates and per-type ``max_tokens`` budgets are the
-{framework}^χ headline values. The fast-path call always returns
+bioHarness headline values. The fast-path call always returns
 benchmark-shaped output (a single token for yesno/mcq, a short phrase
 for factoid, etc.) and the routing logprob is read off the same call.
 """
@@ -144,23 +144,23 @@ MAX_TOKENS: dict[str, int] = {
 # The comma-separated prompt above produced 0/210 parseable answers (~6%
 # set-F1, a formatting artifact). With the atlas enabled (+D), inject the gene's
 # HPA tissue expression via ``atlas.build_expression_messages``.
-# See ``framework_chi.cascade.atlas`` for the D component and ablation numbers.
+# See ``bioharness.cascade.atlas`` for the D component and ablation numbers.
 # ----------------------------------------------------------------------
-from .atlas import EXPRESSION_TISSUE_VOCAB as _EXPRESSION_VOCAB  # noqa: E402
+from . import atlas as _atlas  # noqa: E402
 
-SYSTEM_PROMPTS["expression"] = (
-    "You are an expert on human gene/protein tissue expression. "
-    "List ALL tissues from the ALLOWED list where the gene is expressed — be "
-    "comprehensive, include every tissue with meaningful expression, not just "
-    "the top one. Choose ONLY from the allowed tissues. Output a JSON array of "
-    "tissue names, nothing else.\n"
-    "ALLOWED TISSUES: " + ", ".join(_EXPRESSION_VOCAB) + "\n"
+# Single source of truth for the expression system prompt (avoids drift).
+SYSTEM_PROMPTS["expression"] = _atlas.EXPRESSION_SYSTEM_PROMPT.format(
+    vocab=", ".join(_atlas.EXPRESSION_TISSUE_VOCAB)
 )
+# Expression is a structured-fact subtask, not literature-RAG: the prompt
+# intentionally drops ``{context}`` (retrieved PubMed passages do not help
+# gene->tissue lookup). The atlas reference (+D) is injected separately via
+# ``atlas.build_expression_messages`` when an HPA backend is wired.
 USER_PROMPTS["expression"] = (
     "Gene question: {question}\n"
     "Answer (JSON array):"
 )
-MAX_TOKENS["expression"] = 300
+MAX_TOKENS["expression"] = _atlas.EXPRESSION_MAX_TOKENS
 
 
 # ----------------------------------------------------------------------

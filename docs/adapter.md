@@ -16,7 +16,7 @@ class QAClient(Protocol):
 
 `PipelineCascadeClient` implements that protocol. Its `generate` method is
 the orchestration point for the seven-stage cascade described in the
-`{framework}^χ` paper. The mapping looks like:
+`bioHarness` paper. The mapping looks like:
 
 ```text
 Item                     ->  PipelineCascadeClient.generate
@@ -35,7 +35,7 @@ multi-tool dispatch from your infrastructure repository), subclass
 `PipelineCascadeClient` and override `_agent`:
 
 ```python
-from framework_chi.cascade.client import PipelineCascadeClient, AgentOutcome
+from bioharness.cascade.client import PipelineCascadeClient, AgentOutcome
 
 class MyChi(PipelineCascadeClient):
     async def _agent(self, item, ctx, fast_path):

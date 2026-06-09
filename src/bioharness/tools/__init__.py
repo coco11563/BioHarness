@@ -1,6 +1,6 @@
 """Tool registry + pre-call dispatch.
 
-The {framework}^χ headline pipeline pre-calls a small set of entity-lookup
+The bioHarness headline pipeline pre-calls a small set of entity-lookup
 tools before agent escalation so the agent (and the constrained
 re-judgment stage) sees authoritative gene / protein / pathway data.
 This module implements the open-source equivalent of that pre-call.
@@ -12,7 +12,7 @@ import logging
 import re
 from typing import Any
 
-from framework_chi.tools.gene_resolver import GeneRecord, resolve_gene
+from bioharness.tools.gene_resolver import GeneRecord, resolve_gene
 
 LOGGER = logging.getLogger(__name__)
 

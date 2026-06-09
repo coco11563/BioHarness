@@ -15,8 +15,8 @@ from typing import Any
 
 from framework_eval.eval.types import Item
 
-from framework_chi.cascade.client import AgentOutcome
-from framework_chi.config import ServiceConfig
+from bioharness.cascade.client import AgentOutcome
+from bioharness.config import ServiceConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ async def run_agent(
     LLM analysis pass over the assembled context + tool evidence, and
     for ``list`` items run a second "what's missing" expansion pass so
     the rejudge stage sees a longer enumerated candidate set."""
-    from framework_chi.tools import precall_tools
+    from bioharness.tools import precall_tools
 
     try:
         tool_evidence = await precall_tools(item.question, item.question_type)
