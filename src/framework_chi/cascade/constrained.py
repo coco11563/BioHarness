@@ -139,6 +139,31 @@ MAX_TOKENS: dict[str, int] = {
 
 
 # ----------------------------------------------------------------------
+# Expression subtask (atlas component D): override the upstream free-text
+# expression prompt with the recall + fixed-vocabulary + parseable-JSON prompt.
+# The comma-separated prompt above produced 0/210 parseable answers (~6%
+# set-F1, a formatting artifact). With the atlas enabled (+D), inject the gene's
+# HPA tissue expression via ``atlas.build_expression_messages``.
+# See ``framework_chi.cascade.atlas`` for the D component and ablation numbers.
+# ----------------------------------------------------------------------
+from .atlas import EXPRESSION_TISSUE_VOCAB as _EXPRESSION_VOCAB  # noqa: E402
+
+SYSTEM_PROMPTS["expression"] = (
+    "You are an expert on human gene/protein tissue expression. "
+    "List ALL tissues from the ALLOWED list where the gene is expressed — be "
+    "comprehensive, include every tissue with meaningful expression, not just "
+    "the top one. Choose ONLY from the allowed tissues. Output a JSON array of "
+    "tissue names, nothing else.\n"
+    "ALLOWED TISSUES: " + ", ".join(_EXPRESSION_VOCAB) + "\n"
+)
+USER_PROMPTS["expression"] = (
+    "Gene question: {question}\n"
+    "Answer (JSON array):"
+)
+MAX_TOKENS["expression"] = 300
+
+
+# ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
 
@@ -359,8 +384,10 @@ def extract_constrained_answer(
         return cleaned[:200]
 
     if question_type == "expression":
-        cleaned = response.replace("\n", ", ")
-        return cleaned[:200]
+        # Atlas component (D): parse the JSON array and restrict to the fixed
+        # tissue vocabulary; emit comma-separated for the set-F1 scorer.
+        from .atlas import parse_expression_tissues
+        return ", ".join(parse_expression_tissues(response))
 
     if question_type == "summary":
         return response[:1024]
