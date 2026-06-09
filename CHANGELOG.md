@@ -7,6 +7,15 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **Rebranded to `bioHarness`** (formerly `XCompass_Chi`). **Breaking:**
+  - Python package `framework_chi` → `bioharness` (import path:
+    `from bioharness... import ...`).
+  - Environment-variable prefix `FRAMEWORK_*` → `BIOHARNESS_*`. The old
+    `FRAMEWORK_*` names are still read for one release with a deprecation
+    warning; update your configs to `BIOHARNESS_*`.
+  - CLI `framework-chi` → `bioharness`; repo URLs → `coco11563/bioHarness`.
+  - Unchanged: the framework-eval method id (`pipeline`), predictions, and
+    headline numbers.
 - The companion eval framework
   ([XCompass_Eval_Framework](https://github.com/coco11563/XCompass_Eval_Framework))
   added an additive **`continuous-v2` scoring protocol** (SQuAD/BioASQ
@@ -20,6 +29,20 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
     specification.
 
 ### Added
+- **Atlas (D) component** (`bioharness.cascade.atlas`) for the SciHorizon
+  `expression` subtask (gene → tissue list):
+  - A recall + fixed 27-tissue-vocabulary + parseable-JSON prompt, replacing
+    the free-text expression prompt that produced 0/210 parseable answers
+    (~6% set-F1, a formatting artifact). This `-D` path ships and runs by
+    default.
+  - An opt-in `+D` *atlas-as-context* path: `bioharness.clients.atlas.AtlasClient`
+    fetches a gene's HPA bulk tissue expression and injects it as a
+    supplementary reference block. Enable with `BIOHARNESS_ENABLE_ATLAS=1`
+    and a reachable `BIOHARNESS_ATLAS_URL` (off by default; fail-soft to `-D`).
+  - Ablation (SciHorizon expression, non-empty GT, n=175, set-F1):
+    `-D` 65.3 → `+D` 78.8 (**+13.5 pp**, McNemar p < 1e-12); `+D` also beats a
+    direct HPA lookup (73.9). GT is NCBI Gene-derived, atlas is HPA →
+    cross-database structured-knowledge retrieval.
 - Method-side reproducibility manifest (`MANIFEST.toml`) pinning the
   framework-eval contract version, headline numbers, live tolerance
   band, infra requirements, and offline cached smoke set.
