@@ -148,7 +148,7 @@ class RerankClient:
             async with sem:
                 try:
                     return await self._score_one(query, doc)
-                except Exception:  # noqa: BLE001 - fail-soft per document
+                except Exception:
                     return 0.0
 
         return await asyncio.gather(*[one(d) for d in documents])

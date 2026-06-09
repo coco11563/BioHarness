@@ -45,12 +45,12 @@ async def dense_retrieve(
     """Embed the question and search the dense vector index."""
     try:
         vec = await embed_client.embed_one(question)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("dense embed failed: %s", exc)
         return []
     try:
         return await qdrant_client.search(collection, vec, top_k=top_k)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("qdrant search failed: %s", exc)
         return []
 
@@ -68,6 +68,6 @@ async def dual_rerank(
     texts = [(p.get("text") or "") for p in passages]
     try:
         return await rerank_client.score(question, texts, top_k=top_k)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("rerank failed: %s; falling back to identity ranking", exc)
         return [1.0 - i / max(1, len(passages)) for i in range(len(passages))]

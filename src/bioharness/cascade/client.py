@@ -32,13 +32,12 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from framework_eval.eval.types import Item, Prediction, QuestionType
+from framework_eval.eval.types import Item, Prediction
 
 from bioharness.config import (
     CASCADE_THRESHOLD,
     DENSE_COLLECTION,
     RERANK_TOP_K,
-    RETRIEVAL_TOP_K,
     ServiceConfig,
 )
 

@@ -17,7 +17,6 @@ production source tree available.
 
 from __future__ import annotations
 
-import importlib
 import logging
 import os
 import sys

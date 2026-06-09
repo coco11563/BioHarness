@@ -80,7 +80,15 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "PL", "RUF"]
-ignore = ["PLR0913", "PLR2004"]
+ignore = [
+  "PLR0913", "PLR2004",
+  # Lazy imports are a deliberate convention here: the optional framework_eval
+  # dependency, lighter module load, and avoiding import cycles.
+  "PLC0415",
+  # Flat type-dispatch functions (e.g. extract_constrained_answer) are readable;
+  # the return/branch caps are false positives there.
+  "PLR0911", "PLR0912",
+]
 
 [tool.mypy]
 python_version       = "3.10"

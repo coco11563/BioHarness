@@ -85,7 +85,7 @@ def _load_production_pipeline() -> tuple[Any, Any]:
 
     try:
         from src.rlm.pipeline import BiomedicalRLMPipeline, PipelineConfig
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"Could not import src.rlm.pipeline from {root!r}: {exc}. "
             "Verify that the directory contains src/rlm/pipeline.py and "
@@ -102,7 +102,7 @@ def production_agent_available() -> bool:
     try:
         _load_production_pipeline()
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -113,8 +113,8 @@ def production_agent_available() -> bool:
 
 async def run_production_agent(
     *,
-    llm: Any,                       # noqa: ARG001 - the production pipeline manages its own LLM
-    services: ServiceConfig,        # noqa: ARG001 - production uses its own service config
+    llm: Any,
+    services: ServiceConfig,
     item: Item,
     retrieval: Any,
     fast_path: Any,
@@ -166,7 +166,7 @@ async def run_production_agent(
             question_type=item.question_type,
             context=ctx,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning(
             "production REPL agent failed for %s: %s; using fast-path answer",
             item.id, exc,

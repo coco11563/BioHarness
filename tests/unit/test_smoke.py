@@ -21,10 +21,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_package_imports() -> None:
     import bioharness
-    import bioharness.cascade
     import bioharness.agent
-    import bioharness.clients
+    import bioharness.cascade
     import bioharness.cli
+    import bioharness.clients
     import bioharness.config
     import bioharness.tools
     assert bioharness.__version__

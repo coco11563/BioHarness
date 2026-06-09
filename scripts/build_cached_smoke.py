@@ -39,7 +39,7 @@ async def _record(args: argparse.Namespace) -> int:
         for it in items:
             try:
                 pred = await client.generate(it)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 print(f"  {cfg}:{it.id} FAILED ({exc}); skipping", file=sys.stderr)
                 continue
             rows.append(

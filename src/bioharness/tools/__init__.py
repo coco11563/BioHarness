@@ -110,4 +110,4 @@ async def precall_tools(
     return "## Tool Results (pre-fetched)\n" + "\n".join(parts)
 
 
-__all__ = ["REGISTRY", "extract_gene_entities", "precall_tools", "GeneRecord", "resolve_gene"]
+__all__ = ["REGISTRY", "GeneRecord", "extract_gene_entities", "precall_tools", "resolve_gene"]

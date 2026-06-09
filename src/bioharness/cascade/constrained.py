@@ -257,7 +257,7 @@ async def constrained_generate(
             model=model_name, messages=messages,
             max_tokens=max_tokens, temperature=0.1,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("constrained_generate failed: %s", exc)
         return "", 0.0
     return text, confidence
@@ -321,7 +321,7 @@ async def rejudge(
             model=model_name, messages=messages,
             max_tokens=max_tokens, temperature=0.1,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("rejudge failed: %s", exc)
         return agent_text
     return text

@@ -70,7 +70,7 @@ async def pseudo_answer_text(
             model=model_name, messages=messages,
             max_tokens=256, temperature=0.1,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("pseudo_answer_text failed: %s; using question text", exc)
         return item.question
     text = (text or "").strip()
@@ -88,5 +88,5 @@ def negative_evidence_query(item: Item) -> str:
 # Back-compat names kept so external callers do not break if they
 # imported the old surface (returns the verbatim question; query rewrite
 # is now done implicitly via pseudo_answer_text instead).
-async def rewrite_query(_llm_client: Any, *, model_name: str, item: Item) -> str:  # noqa: ARG001
+async def rewrite_query(_llm_client: Any, *, model_name: str, item: Item) -> str:
     return item.question

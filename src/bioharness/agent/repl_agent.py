@@ -49,7 +49,7 @@ async def run_agent(
 
     try:
         tool_evidence = await precall_tools(item.question, item.question_type)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("precall_tools failed: %s", exc)
         tool_evidence = ""
 
@@ -90,7 +90,7 @@ async def run_agent(
             max_tokens=512,
             temperature=0.1,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         LOGGER.warning("agent escalation failed: %s; using fast-path answer", exc)
         return AgentOutcome(
             answer=fast_path.answer,

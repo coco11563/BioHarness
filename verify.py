@@ -29,7 +29,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
-import json
 import sys
 from pathlib import Path
 
@@ -73,10 +72,13 @@ def _check_plugin_resolves(manifest: dict) -> str | None:
         )
     try:
         cls = load_method(entry_name)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return f"entry point {entry_name!r} failed to import: {exc}"
     if cls.__name__ != "PipelineCascadeClient":
-        return f"entry point {entry_name!r} resolved to {cls.__name__}, expected PipelineCascadeClient"
+        return (
+            f"entry point {entry_name!r} resolved to {cls.__name__}, "
+            "expected PipelineCascadeClient"
+        )
     return None
 
 
@@ -129,7 +131,7 @@ async def _live_smoke(manifest: dict) -> tuple[bool, str]:
             question_type="yesno", answer="yes",
         )
         pred = await client.generate(item)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         await client.aclose()
         return False, f"live smoke generate raised: {exc}"
     await client.aclose()

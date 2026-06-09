@@ -62,7 +62,7 @@ class ServiceConfig:
     force_agent:       bool = False
 
     @classmethod
-    def from_env(cls) -> "ServiceConfig":
+    def from_env(cls) -> ServiceConfig:
         return cls(
             llm_url     = _env("BIOHARNESS_LLM_URL",     "http://127.0.0.1:8000/v1"),
             embed_url   = _env("BIOHARNESS_EMBED_URL",   "http://127.0.0.1:8002/v1"),

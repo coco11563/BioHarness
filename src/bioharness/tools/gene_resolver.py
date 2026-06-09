@@ -123,7 +123,7 @@ async def resolve_gene(
             aliases=aliases,
             entrez_id=gid,
         )
-    except Exception as exc:  # noqa: BLE001 - resolver is best-effort
+    except Exception as exc:
         LOGGER.warning("resolve_gene(%r) failed: %s", query, exc)
         return None
     finally:

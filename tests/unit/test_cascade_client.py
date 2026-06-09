@@ -5,15 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from framework_eval.eval.types import Item
 
 from bioharness.cascade.client import (
     AgentOutcome,
     FastPathOutcome,
+    PipelineCascadeClient,
     RetrievalContext,
     StubPipelineCascadeClient,
-    PipelineCascadeClient,
 )
 from bioharness.config import ServiceConfig
 

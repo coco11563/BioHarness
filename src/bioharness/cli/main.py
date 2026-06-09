@@ -26,7 +26,6 @@ from bioharness.config import (
     ServiceConfig,
 )
 
-
 # ----------------------------------------------------------------------
 # doctor
 # ----------------------------------------------------------------------
@@ -40,7 +39,7 @@ async def _probe(url: str, *, expect_path: str = "") -> tuple[bool, str]:
         if r.status_code in (200, 401, 403, 404):
             return True, f"HTTP {r.status_code}"
         return False, f"HTTP {r.status_code}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, str(exc)
 
 
@@ -53,7 +52,7 @@ async def _probe_postgres(url: str) -> tuple[bool, str]:
         with psycopg.connect(url, connect_timeout=5) as conn:
             conn.execute("SELECT 1")
         return True, "ok"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, str(exc)
 
 
