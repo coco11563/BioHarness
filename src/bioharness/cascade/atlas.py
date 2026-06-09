@@ -11,14 +11,15 @@ vocabulary. The ``D`` component has two halves:
    formatting artifact, not a knowledge gap. This half is wired into the cascade
    (see ``constrained.py``) and is what the default ``-D`` path runs.
 
-2. **Atlas-as-context (+D) — public integration hook, NOT bundled infra.**
-   ``build_expression_messages(question, atlas_rows=...)`` is the integration
-   point: a caller that has an HPA backend renders the gene's bulk tissue
-   expression with ``atlas_rows_from_hpa(...)`` and passes it in, and the model
-   reconciles it with its parametric knowledge (it is NOT forced to copy the
-   atlas). **This package does not ship an HPA/Disco client**, so the default
-   cascade runs the ``-D`` (format-fixed, no-atlas) path; enabling ``+D``
-   requires wiring an HPA backend in your deployment.
+2. **Atlas-as-context (+D) — wired, opt-in.** The cascade fetches the gene's
+   HPA bulk tissue expression via ``clients/atlas.py`` (``AtlasClient``) and
+   injects it as a *supplementary* reference block, which the model reconciles
+   with its parametric knowledge (it is NOT forced to copy the atlas). This is
+   **off by default** (``-D``), so the package runs with no atlas backend;
+   enabling it needs ``BIOHARNESS_ENABLE_ATLAS=1`` plus a reachable primitive
+   server at ``BIOHARNESS_ATLAS_URL`` (e.g. ``scdata_primitive_server`` on
+   :8443). ``build_expression_messages(question, atlas_rows=...)`` /
+   ``atlas_rows_from_hpa(...)`` are the standalone helpers behind the wiring.
 
 Ablation that motivates both halves (SciHorizon expression, non-empty GT,
 n=175, benchmark expression set-F1, threshold 0.3)::
@@ -88,6 +89,15 @@ def normalize_tissue(name: str) -> str:
     """Map an HPA/atlas tissue name to the GT vocabulary."""
     name = (name or "").lower().strip()
     return _TISSUE_NORMALIZE.get(name, name)
+
+
+_GENE_RE = re.compile(r"expression pattern of ([A-Za-z0-9\-._]+) gene", re.IGNORECASE)
+
+
+def gene_from_expression_question(question: str) -> str | None:
+    """Extract the gene symbol from a SciHorizon expression question."""
+    match = _GENE_RE.search(question or "")
+    return match.group(1) if match else None
 
 
 def atlas_rows_from_hpa(gene: str, entries: Iterable[dict[str, Any]]) -> str | None:

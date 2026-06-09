@@ -92,6 +92,7 @@ class PipelineCascadeClient:
         self._embed   = None
         self._rerank  = None
         self._qdrant  = None
+        self._atlas   = None
         self._closed  = False
 
     # ------------------------------------------------------------------
@@ -141,7 +142,7 @@ class PipelineCascadeClient:
         )
 
     async def aclose(self) -> None:
-        for client in (self._llm, self._embed, self._rerank, self._qdrant):
+        for client in (self._llm, self._embed, self._rerank, self._qdrant, self._atlas):
             if client is None:
                 continue
             close = getattr(client, "aclose", None) or getattr(client, "close", None)
@@ -253,11 +254,25 @@ class PipelineCascadeClient:
             extract_constrained_answer,
         )
 
+        # Atlas component (D): for expression questions, fetch the gene's HPA
+        # tissue expression and inject it as supplementary context (+D). No-op
+        # unless enable_atlas is set; fails soft to the -D path.
+        atlas_rows = None
+        if item.question_type == "expression":
+            atlas = self._atlas_client()
+            if atlas is not None:
+                from bioharness.cascade.atlas import gene_from_expression_question
+
+                gene = gene_from_expression_question(item.question)
+                if gene:
+                    atlas_rows = await atlas.tissue_rows(gene)
+
         text, logprob = await constrained_generate(
             self._llm_client(),
             model_name=self.services.model_name,
             item=item,
             passages=ctx.passages,
+            atlas_rows=atlas_rows,
         )
         normalised = extract_constrained_answer(text, item.question_type, item.options)
         grounded = self._answer_is_grounded(normalised, ctx, item) if normalised else False
@@ -384,6 +399,16 @@ class PipelineCascadeClient:
 
             self._qdrant = QdrantClient(self.services.qdrant_url)
         return self._qdrant
+
+    def _atlas_client(self):
+        """Atlas (D) client, or None when +D is disabled (the default)."""
+        if not self.services.enable_atlas:
+            return None
+        if self._atlas is None:
+            from bioharness.clients.atlas import AtlasClient
+
+            self._atlas = AtlasClient(self.services.atlas_url)
+        return self._atlas
 
 
 # ----------------------------------------------------------------------

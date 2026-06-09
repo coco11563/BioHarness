@@ -240,13 +240,18 @@ async def constrained_generate(
     model_name: str,
     item: Item,
     passages: list[dict[str, Any]] | None,
+    atlas_rows: str | None = None,
 ) -> tuple[str, float]:
     """Single-call fast path: returns (response_text, first-token confidence).
 
     Matches the upstream cascade: ``temperature=0.1``, ``top_logprobs=5``,
-    confidence = ``exp(first_token.logprob)``.
+    confidence = ``exp(first_token.logprob)``. For expression questions,
+    ``atlas_rows`` (+D, from the atlas client) is prepended to the user prompt
+    as a supplementary HPA reference block; ``None`` runs the -D path.
     """
     system, user = build_messages(item, passages)
+    if item.question_type == "expression" and atlas_rows:
+        user = _atlas.ATLAS_CONTEXT_TEMPLATE.format(rows=atlas_rows) + "\n" + user
     messages = [
         {"role": "system", "content": system},
         {"role": "user",   "content": user},

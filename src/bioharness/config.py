@@ -60,6 +60,10 @@ class ServiceConfig:
     model_name:        str
     api_key:           str
     force_agent:       bool = False
+    # Atlas component (D): off by default -> the cascade runs the -D expression
+    # path. Set enable_atlas + a reachable atlas_url to activate +D.
+    atlas_url:         str = "http://127.0.0.1:8443"
+    enable_atlas:      bool = False
 
     @classmethod
     def from_env(cls) -> ServiceConfig:
@@ -79,6 +83,8 @@ class ServiceConfig:
             model_name  = _env("BIOHARNESS_MODEL_NAME", "{model}"),
             api_key     = _env("BIOHARNESS_API_KEY",    "EMPTY"),
             force_agent = _env_bool("BIOHARNESS_FORCE_AGENT", False),
+            atlas_url    = _env("BIOHARNESS_ATLAS_URL", "http://127.0.0.1:8443"),
+            enable_atlas = _env_bool("BIOHARNESS_ENABLE_ATLAS", False),
         )
 
     def reachable_summary(self) -> dict[str, str]:
