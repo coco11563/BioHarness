@@ -55,7 +55,7 @@ def _patch(monkeypatch, *, fast_logprob: float, grounded: bool,
             iterations=1, tool_calls=["pubmed_search"],
         )
 
-    async def fake_rejudge(self, item, agent):
+    async def fake_rejudge(self, item, agent, retrieval=None):
         return rejudge_text
 
     monkeypatch.setattr(PipelineCascadeClient, "_retrieve", fake_retrieve)
@@ -90,11 +90,33 @@ async def test_low_logprob_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_ungrounded_answer_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_ungrounded_factoid_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Grounded gate applies to factoid/list (pipeline GROUNDED_CHECK_TYPES)."""
     _patch(monkeypatch, fast_logprob=0.95, grounded=False, rejudge_text="no")
     client = PipelineCascadeClient(services=_services())
-    pred = await client.generate(_item("mcq", answer="A"))
+    pred = await client.generate(_item("factoid", answer="entity"))
     assert pred.extras["stage"] == "agent_rejudged"
+
+
+@pytest.mark.asyncio
+async def test_ungrounded_mcq_does_not_escalate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Grounded gate must NOT fire for mcq: substring grounding is meaningless
+    for one-token labels, and the pipeline restricts it to factoid/list."""
+    _patch(monkeypatch, fast_logprob=0.95, grounded=False)
+    client = PipelineCascadeClient(services=_services())
+    pred = await client.generate(_item("mcq", answer="A"))
+    assert pred.extras["stage"] == "fast_path"
+
+
+@pytest.mark.asyncio
+async def test_expression_always_takes_fast_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Expression is fully handled by the repair-context fast path; it never
+    escalates (would discard the +D atlas signal and diverge from the pipeline),
+    even with low confidence, ungrounded, and force_agent=True."""
+    _patch(monkeypatch, fast_logprob=0.0, grounded=False)
+    client = PipelineCascadeClient(services=_services(force_agent=True))
+    pred = await client.generate(_item("expression", answer='{"tissue_list": []}'))
+    assert pred.extras["stage"] == "fast_path"
 
 
 @pytest.mark.asyncio

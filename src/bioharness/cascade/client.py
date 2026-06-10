@@ -103,16 +103,27 @@ class PipelineCascadeClient:
         retrieval = await self._retrieve(item)
         fast_path = await self._fast_path(item, retrieval)
 
+        # Grounded gate escalates only factoid/list answers (mirrors the
+        # pipeline's GROUNDED_CHECK_TYPES); substring grounding is meaningless
+        # for one-token labels (mcq/yesno) and structured answers (expression).
+        grounded_fail = (
+            item.question_type in ("factoid", "list") and not fast_path.grounded
+        )
         should_escalate = (
             self.services.force_agent
             or fast_path.logprob < CASCADE_THRESHOLD
             or not fast_path.answer
-            or not fast_path.grounded
+            or grounded_fail
         )
 
-        # yesno always returns the fast-path answer (paper §5.2: the agent
-        # over-analyses and introduces a documented 'no' bias).
-        if not should_escalate or item.question_type == "yesno":
+        # yesno and expression always return the fast-path answer:
+        #  - yesno: the agent over-analyses and introduces a documented 'no'
+        #    bias (paper §5.2);
+        #  - expression: the repair-context fast path (literature base + atlas
+        #    repair) IS the complete answer. Escalating would discard the +D
+        #    atlas signal and diverge from the production pipeline, which
+        #    handles expression outside the cascade entirely.
+        if not should_escalate or item.question_type in ("yesno", "expression"):
             return Prediction(
                 item_id=item.id,
                 answer=fast_path.answer,

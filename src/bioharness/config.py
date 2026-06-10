@@ -103,6 +103,6 @@ class ServiceConfig:
 # re-recording the cached smoke set.
 CASCADE_THRESHOLD     = 0.7      # logprob-derived confidence below which we escalate
 RETRIEVAL_TOP_K       = 20       # dense retrieval before rerank
-RERANK_TOP_K          = 10       # passages handed to constrained generation
+RERANK_TOP_K          = 20       # passages handed to constrained generation (matches pipeline top_k=20)
 MAX_AGENT_ITERATIONS  = 8        # upper bound for the agent escalation hook
 DENSE_COLLECTION      = "paper-full"
