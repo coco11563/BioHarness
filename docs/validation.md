@@ -39,7 +39,7 @@ call; users who need the heavier agent should subclass
   any user would invoke.
 - The "Prod" column reads the per-item `correct` field from the run
   snapshot shipped in
-  `XCompass_Eval_Framework/output/pipeline/`
+  `bioharness_eval_framework/output/pipeline/`
   (the paper-headline jsonl), filtered to the same item ids.
 - Each row reports `correct / n` exactly as the in-tree evaluator
   records it; question types map 1:1 to the binarisation table in

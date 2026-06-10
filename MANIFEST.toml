@@ -4,7 +4,7 @@
 # (id ``pipeline``) reported in the bioHarness paper.
 # It is registered as a plugin under
 # ``framework_eval.methods`` so the eval harness in
-# ``coco11563/XCompass_Eval_Framework`` can score it directly.
+# ``coco11563/bioharness_eval_framework`` can score it directly.
 #
 # The data + scoring + verify-gate contract lives in the eval-framework
 # manifest; this manifest pins only what is owned here:

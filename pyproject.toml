@@ -61,7 +61,7 @@ pipeline-production  = "bioharness.cascade.production_client:ProductionPipelineC
 Homepage             = "https://github.com/coco11563/bioHarness"
 Repository           = "https://github.com/coco11563/bioHarness"
 Issues               = "https://github.com/coco11563/bioHarness/issues"
-EvaluationFramework  = "https://github.com/coco11563/XCompass_Eval_Framework"
+EvaluationFramework  = "https://github.com/coco11563/bioharness_eval_framework"
 Dataset              = "https://huggingface.co/datasets/Shaow/GeneKnowledgeEval"
 
 [tool.hatch.build.targets.wheel]

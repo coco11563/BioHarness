@@ -3,7 +3,7 @@
 **The bioHarness headline method** —
 ``pipeline`` — packaged as a registered
 ``framework_eval.methods`` plugin so the
-[XCompass_Eval_Framework](https://github.com/coco11563/XCompass_Eval_Framework)
+[bioharness_eval_framework](https://github.com/coco11563/bioharness_eval_framework)
 harness can score it on the
 [Shaow/GeneKnowledgeEval](https://huggingface.co/datasets/Shaow/GeneKnowledgeEval)
 benchmark (8 datasets, 19,474 items, 7 question types).
@@ -106,12 +106,12 @@ under the live tolerance band documented in `MANIFEST.toml`
 
 If you only need the headline numbers without re-running inference, the
 shipped run snapshot in
-[XCompass_Eval_Framework](https://github.com/coco11563/XCompass_Eval_Framework)
+[bioharness_eval_framework](https://github.com/coco11563/bioharness_eval_framework)
 already reproduces them byte-for-byte:
 
 ```bash
-git clone https://github.com/coco11563/XCompass_Eval_Framework.git
-cd XCompass_Eval_Framework
+git clone https://github.com/coco11563/bioharness_eval_framework.git
+cd bioharness_eval_framework
 python verify.py
 ```
 

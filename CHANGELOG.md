@@ -17,7 +17,7 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   - Unchanged: the framework-eval method id (`pipeline`), predictions, and
     headline numbers.
 - The companion eval framework
-  ([XCompass_Eval_Framework](https://github.com/coco11563/XCompass_Eval_Framework))
+  ([bioharness_eval_framework](https://github.com/coco11563/bioharness_eval_framework))
   added an additive **`continuous-v2` scoring protocol** (SQuAD/BioASQ
   token-F1 for factoid items; non-factoid subtasks unchanged). Headline
   numbers under the new protocol: `binary_accuracy=0.766035`,
