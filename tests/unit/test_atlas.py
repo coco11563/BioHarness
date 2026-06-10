@@ -87,6 +87,7 @@ def test_atlas_rows_from_hpa_empty_is_none():
 def test_build_expression_messages_minus_d():
     msg = atlas.build_expression_messages("Q?")
     assert "ALLOWED TISSUES" in msg[0]["content"]
+    assert "Literature evidence:" in msg[0]["content"]
     assert "Reference tissue expression" not in msg[0]["content"]
 
 
@@ -94,6 +95,19 @@ def test_build_expression_messages_plus_d():
     msg = atlas.build_expression_messages("Q?", atlas_rows="G: liver:23")
     assert "Reference tissue expression" in msg[0]["content"]
     assert "G: liver:23" in msg[0]["content"]
+
+
+def test_build_expression_messages_repair_context():
+    """Repair context: retrieved literature is the base, atlas repairs it."""
+    msg = atlas.build_expression_messages(
+        "Q?", evidence="[1] PMID 1\nGene X in liver.", atlas_rows="G: liver:23")
+    content = msg[0]["content"]
+    assert "Gene X in liver." in content          # literature base present
+    assert "Reference tissue expression" in content  # atlas repair present
+    # -D degrades to literature-only (no atlas block)
+    minus_d = atlas.build_expression_messages("Q?", evidence="[1] PMID 1\nGene X in liver.")
+    assert "Gene X in liver." in minus_d[0]["content"]
+    assert "Reference tissue expression" not in minus_d[0]["content"]
 
 
 # ----------------------------------------------------------------------

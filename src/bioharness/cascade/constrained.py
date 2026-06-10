@@ -152,12 +152,15 @@ from . import atlas as _atlas  # noqa: E402
 SYSTEM_PROMPTS["expression"] = _atlas.EXPRESSION_SYSTEM_PROMPT.format(
     vocab=", ".join(_atlas.EXPRESSION_TISSUE_VOCAB)
 )
-# Expression is a structured-fact subtask, not literature-RAG: the prompt
-# intentionally drops ``{context}`` (retrieved PubMed passages do not help
-# gene->tissue lookup). The atlas reference (+D) is injected separately via
-# ``atlas.build_expression_messages`` when an HPA backend is wired.
+# Expression follows the repair-context design: the retrieved literature is the
+# base context, and the atlas (+D) REPAIRS it by adding the gene's structured HPA
+# tissue expression — the supplementary evidence literature retrieval cannot
+# surface. The combined context feeds the final (recall + fixed-vocab + JSON)
+# generation; when the atlas returns nothing the prompt degrades to the
+# literature-only (-D) answer. The atlas block is injected in ``constrained_generate``.
 USER_PROMPTS["expression"] = (
-    "Gene question: {question}\n"
+    "Literature evidence:\n{context}\n"
+    "\nGene question: {question}\n"
     "Answer (JSON array):"
 )
 MAX_TOKENS["expression"] = _atlas.EXPRESSION_MAX_TOKENS
@@ -245,9 +248,11 @@ async def constrained_generate(
     """Single-call fast path: returns (response_text, first-token confidence).
 
     Matches the upstream cascade: ``temperature=0.1``, ``top_logprobs=5``,
-    confidence = ``exp(first_token.logprob)``. For expression questions,
-    ``atlas_rows`` (+D, from the atlas client) is prepended to the user prompt
-    as a supplementary HPA reference block; ``None`` runs the -D path.
+    confidence = ``exp(first_token.logprob)``. For expression questions the user
+    prompt already carries the retrieved literature as base context (repair
+    context); ``atlas_rows`` (+D, from the atlas client) is injected as the
+    supplementary HPA reference that repairs it. ``None`` degrades to the
+    literature-only -D answer.
     """
     system, user = build_messages(item, passages)
     if item.question_type == "expression" and atlas_rows:

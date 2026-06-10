@@ -66,11 +66,13 @@ EXPRESSION_SYSTEM_PROMPT: str = (
     "ALLOWED TISSUES: {vocab}\n"
 )
 
-# Supplementary atlas reference block (+D). Format with ``rows=...`` where rows
-# is e.g. ``"TP53: liver:23, kidney:18, ..."`` (HPA nTPM, vocab-mapped).
+# Supplementary atlas reference block (+D) — the structured evidence that
+# repairs the retrieved literature. Format with ``rows=...`` where rows is e.g.
+# ``"TP53: liver:23, kidney:18, ..."`` (HPA nTPM, vocab-mapped).
 ATLAS_CONTEXT_TEMPLATE: str = (
-    "Reference tissue expression (HPA nTPM; higher = more expressed) — use as "
-    "supplementary evidence with your own knowledge:\n{rows}\n"
+    "Reference tissue expression (HPA nTPM; higher = more expressed) — "
+    "supplementary structured evidence not found in the retrieved literature:\n"
+    "{rows}\n"
 )
 
 # Brain sub-regions and lab-style names collapse to the GT vocabulary.
@@ -120,16 +122,19 @@ def atlas_rows_from_hpa(gene: str, entries: Iterable[dict[str, Any]]) -> str | N
 
 
 def build_expression_messages(
-    question: str, *, atlas_rows: str | None = None,
+    question: str, *, evidence: str = "", atlas_rows: str | None = None,
 ) -> list[dict[str, str]]:
-    """Build the chat messages for an expression question.
+    """Build the chat messages for an expression question (repair context).
 
-    With ``atlas_rows`` provided (+D) the HPA reference is appended as
-    supplementary context; without it (-D) the model answers from parametric
-    knowledge only. Same prompt otherwise — the single ablation flag.
+    ``evidence`` is the retrieved literature, used as the base context. With
+    ``atlas_rows`` provided (+D) the HPA reference is appended as the
+    supplementary structured evidence that repairs the literature; without it
+    (-D) the prompt degrades to the literature-only answer. The single ablation
+    flag is atlas-in-context-or-not.
     """
     vocab = ", ".join(EXPRESSION_TISSUE_VOCAB)
     user = EXPRESSION_SYSTEM_PROMPT.format(vocab=vocab)
+    user += "\nLiterature evidence:\n" + (evidence or "(none retrieved)") + "\n"
     if atlas_rows:
         user += "\n" + ATLAS_CONTEXT_TEMPLATE.format(rows=atlas_rows)
     user += f"\nGene question: {question}\nAnswer (JSON array):"
