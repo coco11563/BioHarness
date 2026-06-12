@@ -26,7 +26,8 @@ Headline reproduced by the bioHarness paper:
 
 1. **Adaptive context assembly.** Dense retrieval against a 27.3 M PubMed
    index, optional dual retrieval (positive + negative) for yes/no items,
-   automatic tool calls (gene resolver, UniProt, GO).
+   automatic tool calls (gene resolver, UniProt, GO, NCBI dbSNP + MyGene
+   genomics lookups).
 2. **Constrained generation with logprob confidence.** A short
    benchmark-formatted answer (`max_tokens=4`) plus the routing logprob.
 3. **Adaptive cascade.** High-confidence items return the fast-path answer
@@ -152,7 +153,7 @@ bioHarness/
 ├── src/bioharness/
 │   ├── cascade/                 # PipelineCascadeClient (entry point)
 │   ├── agent/                   # REPL agent escalation path
-│   ├── tools/                   # gene resolver, UniProt, GO, Disco wrappers
+│   ├── tools/                   # gene resolver, genomics (dbSNP/MyGene), UniProt, GO, Disco wrappers
 │   ├── clients/                 # OpenAI-compatible LLM/embed/rerank clients
 │   └── cli/                     # bioharness CLI (doctor, etc.)
 ├── tests/                       # unit + integration tests

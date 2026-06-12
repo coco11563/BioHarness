@@ -13,6 +13,12 @@ import re
 from typing import Any
 
 from bioharness.tools.gene_resolver import GeneRecord, resolve_gene
+from bioharness.tools.genomics import (
+    GeneGenomicRecord,
+    SNPRecord,
+    gene_genomic_info,
+    snp_lookup,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,6 +26,10 @@ LOGGER = logging.getLogger(__name__)
 REGISTRY: dict[str, str] = {
     "gene_resolver": "Resolve a gene symbol/alias to its official symbol, "
                       "chromosomal location, name and aliases via NCBI Gene.",
+    "snp_lookup": "Resolve a dbSNP rs ID to its associated gene and "
+                  "chromosome via NCBI dbSNP.",
+    "gene_genomic_info": "Resolve a gene symbol to its chromosome and "
+                         "protein-coding status via MyGene.info.",
 }
 
 
@@ -105,9 +115,41 @@ async def precall_tools(
             bits.append(f"aliases={list(rec.aliases)}")
         parts.append(f"[gene_info({ent})] {', '.join(bits)}")
 
+    # Genomics lookups: dbSNP rs IDs -> gene/chromosome; and, for protein-coding
+    # / chromosome questions, gene -> chromosome + protein-coding status.
+    for rsid in re.findall(r"\brs\d{3,}\b", question, re.IGNORECASE)[:3]:
+        snp = await snp_lookup(rsid, client=http_client)
+        if snp is None:
+            continue
+        bits = []
+        if snp.gene:
+            bits.append(f"gene={snp.gene}")
+        if snp.chromosome:
+            bits.append(f"chromosome={snp.chromosome} (use this exact format)")
+        if bits:
+            parts.append(f"[snp_lookup({rsid})] {', '.join(bits)}")
+
+    if any(w in q_lower for w in ("codes a protein", "protein-coding",
+                                  "protein coding", "which chromosome", "located on")):
+        for ent in entities:
+            gi = await gene_genomic_info(ent, client=http_client)
+            if gi is None:
+                continue
+            bits = []
+            if gi.protein_coding_answer:
+                bits.append(f"protein_coding={gi.protein_coding_answer} (answer TRUE or FALSE)")
+            if gi.chromosome:
+                bits.append(f"chromosome={gi.chromosome} (use this exact format)")
+            if bits:
+                parts.append(f"[gene_genomic_info({ent})] {', '.join(bits)}")
+
     if not parts:
         return ""
     return "## Tool Results (pre-fetched)\n" + "\n".join(parts)
 
 
-__all__ = ["REGISTRY", "GeneRecord", "extract_gene_entities", "precall_tools", "resolve_gene"]
+__all__ = [
+    "REGISTRY", "GeneRecord", "GeneGenomicRecord", "SNPRecord",
+    "extract_gene_entities", "precall_tools", "resolve_gene",
+    "snp_lookup", "gene_genomic_info",
+]

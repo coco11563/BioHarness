@@ -29,6 +29,17 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
     specification.
 
 ### Added
+- **Genomics tool layer** (`bioharness.tools.genomics`) for GeneTuring-style
+  structured facts that literature retrieval cannot answer:
+  - `snp_lookup(rsid)` — dbSNP rs ID → associated gene + chromosome (NCBI
+    E-utilities).
+  - `gene_genomic_info(symbol)` — gene → chromosome + protein-coding status
+    (MyGene.info), with the answer pre-formatted as `TRUE`/`FALSE`.
+  - Both are wired into `tools.precall_tools`, so the pre-fetched authoritative
+    answer reaches the agent and the constrained re-judgment stage. Targets the
+    SNP-association / SNP-location / gene-location / protein-coding GeneTuring
+    subtasks, whose answers live in NCBI databases rather than PubMed. Async +
+    fail-soft; no API key required (NCBI calls share the gene-resolver throttle).
 - **Atlas (D) component** (`bioharness.cascade.atlas`) for the SciHorizon
   `expression` subtask (gene → tissue list):
   - A recall + fixed 27-tissue-vocabulary + parseable-JSON prompt, replacing
