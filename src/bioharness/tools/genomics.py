@@ -27,8 +27,18 @@ LOGGER = logging.getLogger(__name__)
 
 _DBSNP_ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 _MYGENE = "https://mygene.info/v3/query"
+_BLAST_URL = "https://blast.ncbi.nlm.nih.gov/Blast.cgi"
 # Canonical human chromosomes (exclude alt/patch contigs like HSCHR16_1_CTG1).
 _CANON_CHR = {str(i) for i in range(1, 23)} | {"X", "Y", "MT", "M"}
+
+# Scientific name -> GeneTuring organism vocabulary (multi-species alignment).
+_ORGANISM_MAP = {
+    "Homo sapiens": "human", "Mus musculus": "mouse", "Rattus norvegicus": "rat",
+    "Danio rerio": "zebrafish", "Gallus gallus": "chicken", "Bos taurus": "cow",
+    "Sus scrofa": "pig", "Caenorhabditis elegans": "worm",
+    "Saccharomyces cerevisiae": "yeast", "Drosophila melanogaster": "fly",
+    "Arabidopsis thaliana": "thale-cress",
+}
 
 
 @dataclass(frozen=True)
@@ -141,6 +151,93 @@ async def gene_genomic_info(
         )
     except Exception as exc:
         LOGGER.warning("gene_genomic_info(%r) failed: %s", symbol, exc)
+        return None
+    finally:
+        if owns and client is not None:
+            await client.aclose()
+
+
+# ----------------------------------------------------------------------
+# BLAST (DNA sequence alignment) — NCBI BLAST URL API
+# ----------------------------------------------------------------------
+# Slow (submit -> poll -> fetch, ~30-90s each, rate-limited). For the
+# GeneTuring DNA-alignment subtasks: sequence -> genome coordinates / organism.
+# In the headline pipeline these are precomputed offline into a cache rather
+# than called live; ``blast_align`` is the self-contained live convenience.
+
+_GENOME_DB = "GPIPE/9606/current/ref_top_level"
+_ORG_DB = "core_nt"
+
+
+def parse_genome_hit(text: str) -> str | None:
+    """Top human-genome hit -> 'chrN:start-end' (first HSP only)."""
+    acc = re.search(r"^>(NC_0+(\d+)\.\d+)\s", text, re.MULTILINE)
+    if not acc:
+        return None
+    num = int(acc.group(2))
+    chrom = {23: "X", 24: "Y", 12920: "M"}.get(num, str(num) if 1 <= num <= 22 else None)
+    if chrom is None:
+        return None
+    block = text[acc.end():]
+    scores = [m.start() for m in re.finditer(r"\n Score =", block)]
+    if len(scores) >= 2:
+        block = block[:scores[1]]
+    sbjcts = re.findall(r"^Sbjct\s+(\d+)\s+\S+\s+(\d+)", block, re.MULTILINE)
+    if not sbjcts:
+        return None
+    lo, hi = sorted((int(sbjcts[0][0]), int(sbjcts[-1][1])))
+    return f"chr{chrom}:{lo}-{hi}"
+
+
+def parse_organism_hit(text: str) -> str | None:
+    """Top hit's source organism -> GeneTuring organism vocabulary."""
+    low = text.lower()
+    for sci, common in _ORGANISM_MAP.items():
+        if sci.lower() in low:
+            return common
+    return None
+
+
+async def blast_align(
+    sequence: str, *, mode: str = "genome",
+    client: httpx.AsyncClient | None = None,
+    poll_gap: float = 20.0, max_wait: float = 600.0,
+) -> str | None:
+    """Live BLAST a DNA sequence -> genome coordinates (mode='genome') or
+    source organism (mode='organism'). Returns None on miss/timeout.
+
+    Slow and rate-limited; prefer an offline cache for batch use.
+    """
+    import asyncio
+
+    owns = client is None
+    if owns:
+        client = httpx.AsyncClient(timeout=45.0)
+    db, mega = (_GENOME_DB, "on") if mode == "genome" else (_ORG_DB, None)
+    try:
+        data = {"CMD": "Put", "PROGRAM": "blastn", "DATABASE": db, "QUERY": sequence}
+        if mega:
+            data["MEGABLAST"] = mega
+        r = await client.post(_BLAST_URL, data=data)
+        m = re.search(r"RID = (\w+)", r.text)
+        if not m:
+            return None
+        rid = m.group(1)
+        waited = 0.0
+        while waited < max_wait:
+            await asyncio.sleep(poll_gap)
+            waited += poll_gap
+            s = await client.get(_BLAST_URL, params={
+                "CMD": "Get", "FORMAT_OBJECT": "SearchInfo", "RID": rid})
+            if re.search(r"Status=READY", s.text):
+                rr = await client.get(_BLAST_URL, params={
+                    "CMD": "Get", "FORMAT_TYPE": "Text", "RID": rid,
+                    "ALIGNMENTS": 1, "DESCRIPTIONS": 1})
+                return (parse_genome_hit(rr.text) if mode == "genome"
+                        else parse_organism_hit(rr.text))
+        return None
+    except Exception as exc:
+        LOGGER.warning("blast_align(%s) failed: %s", mode, exc)
         return None
     finally:
         if owns and client is not None:

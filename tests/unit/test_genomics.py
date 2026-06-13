@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from bioharness.tools import gene_genomic_info, precall_tools, snp_lookup
-from bioharness.tools.genomics import _pick_chr
+from bioharness.tools.genomics import _pick_chr, parse_genome_hit, parse_organism_hit
 
 
 def _mock_client() -> httpx.AsyncClient:
@@ -78,3 +78,26 @@ async def test_precall_injects_protein_coding_evidence():
             "Regarding if the gene codes a protein, NODAL is",
             "factoid", http_client=client)
     assert "protein_coding=TRUE" in ev
+
+
+def test_parse_genome_hit_first_hsp_only():
+    # Two HSPs on the same subject far apart; only the first must be used.
+    text = (
+        ">NC_000015.10 Homo sapiens chromosome 15, GRCh38.p14 Primary Assembly\n"
+        "Length=101991189\n\n"
+        " Score = 237 bits\n Strand=Plus/Plus\n\n"
+        "Query  1         ATTC  60\n"
+        "Sbjct  91950805  ATTC  91950864\n"
+        "Query  61        GGGA  128\n"
+        "Sbjct  91950865  GGGA  91950932\n\n"
+        " Score = 40 bits\n"
+        "Query  1         AT  20\n"
+        "Sbjct  94000000  AT  94000020\n"
+    )
+    assert parse_genome_hit(text) == "chr15:91950805-91950932"
+
+
+def test_parse_organism_hit():
+    text = ">XM_001 Caenorhabditis elegans cosmid, complete sequence\nLength=200\n"
+    assert parse_organism_hit(text) == "worm"
+    assert parse_organism_hit("no organism here") is None

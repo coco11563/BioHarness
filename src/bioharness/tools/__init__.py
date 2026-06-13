@@ -16,6 +16,7 @@ from bioharness.tools.gene_resolver import GeneRecord, resolve_gene
 from bioharness.tools.genomics import (
     GeneGenomicRecord,
     SNPRecord,
+    blast_align,
     gene_genomic_info,
     snp_lookup,
 )
@@ -30,6 +31,9 @@ REGISTRY: dict[str, str] = {
                   "chromosome via NCBI dbSNP.",
     "gene_genomic_info": "Resolve a gene symbol to its chromosome and "
                          "protein-coding status via MyGene.info.",
+    "blast_align": "Align a DNA sequence to the human genome (-> chrN:start-end) "
+                   "or identify its source organism via NCBI BLAST (slow; "
+                   "precomputed offline in the headline pipeline).",
 }
 
 
@@ -151,5 +155,5 @@ async def precall_tools(
 __all__ = [
     "REGISTRY", "GeneRecord", "GeneGenomicRecord", "SNPRecord",
     "extract_gene_entities", "precall_tools", "resolve_gene",
-    "snp_lookup", "gene_genomic_info",
+    "snp_lookup", "gene_genomic_info", "blast_align",
 ]
