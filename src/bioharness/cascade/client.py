@@ -63,6 +63,7 @@ class FastPathOutcome:
     response_text: str
     logprob: float
     grounded: bool
+    tool_evidence: str = ""
 
 
 @dataclass
@@ -138,6 +139,10 @@ class PipelineCascadeClient:
             )
 
         agent = await self._agent(item, retrieval, fast_path)
+        # Reuse the fast-path pre-fetched tool evidence in re-judgment (avoids a
+        # second NCBI round-trip) if the agent did not collect its own.
+        if not agent.tool_evidence:
+            agent.tool_evidence = fast_path.tool_evidence
         rejudged = await self._rejudge(item, agent, retrieval=retrieval)
         return Prediction(
             item_id=item.id,
@@ -278,18 +283,26 @@ class PipelineCascadeClient:
                 if gene:
                     atlas_rows = await atlas.tissue_rows(gene)
 
+        # Pre-fetch authoritative tool data (gene / SNP / genomics / BLAST) so
+        # BOTH the fast path and the agent see it — gene-DB lookups (e.g. SNP,
+        # DNA alignment) otherwise answer "unknown" on the fast path.
+        from bioharness.tools import precall_tools
+
+        tool_evidence = await precall_tools(item.question, item.question_type)
+
         text, logprob = await constrained_generate(
             self._llm_client(),
             model_name=self.services.model_name,
             item=item,
             passages=ctx.passages,
             atlas_rows=atlas_rows,
+            tool_evidence=tool_evidence,
         )
         normalised = extract_constrained_answer(text, item.question_type, item.options)
         grounded = self._answer_is_grounded(normalised, ctx, item) if normalised else False
         return FastPathOutcome(
             answer=normalised, response_text=text,
-            logprob=logprob, grounded=grounded,
+            logprob=logprob, grounded=grounded, tool_evidence=tool_evidence,
         )
 
     async def _agent(

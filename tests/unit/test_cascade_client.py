@@ -135,3 +135,24 @@ async def test_force_agent_overrides_high_logprob(monkeypatch: pytest.MonkeyPatc
     client = PipelineCascadeClient(services=_services(force_agent=True))
     pred = await client.generate(_item("mcq", answer="A"))
     assert pred.extras["stage"] == "agent_rejudged"
+
+
+@pytest.mark.asyncio
+async def test_constrained_generate_prepends_tool_evidence() -> None:
+    """Pre-fetched tool evidence must reach the fast-path constrained prompt
+    (so gene-DB lookups are not answered 'unknown' before escalation)."""
+    from bioharness.cascade.constrained import constrained_generate
+
+    captured: dict[str, Any] = {}
+
+    class _FakeLLM:
+        async def chat_with_first_token_confidence(self, *, model, messages, max_tokens, temperature):  # noqa: ANN001
+            captured["user"] = messages[-1]["content"]
+            return "BRCA1", 0.9
+
+    await constrained_generate(
+        _FakeLLM(), model_name="m", item=_item("factoid", answer="BRCA1"),
+        passages=[{"text": "doc"}],
+        tool_evidence="## Tool Results (pre-fetched)\n[snp_lookup(rs1)] gene=BRCA1, chromosome=chr17",
+    )
+    assert "[snp_lookup(rs1)] gene=BRCA1" in captured["user"]

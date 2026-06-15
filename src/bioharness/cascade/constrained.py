@@ -244,6 +244,7 @@ async def constrained_generate(
     item: Item,
     passages: list[dict[str, Any]] | None,
     atlas_rows: str | None = None,
+    tool_evidence: str = "",
 ) -> tuple[str, float]:
     """Single-call fast path: returns (response_text, first-token confidence).
 
@@ -252,11 +253,15 @@ async def constrained_generate(
     prompt already carries the retrieved literature as base context (repair
     context); ``atlas_rows`` (+D, from the atlas client) is injected as the
     supplementary HPA reference that repairs it. ``None`` degrades to the
-    literature-only -D answer.
+    literature-only -D answer. ``tool_evidence`` (pre-fetched gene / SNP /
+    genomics / BLAST lookups) is prepended so the fast path — not only the agent
+    — sees authoritative tool answers.
     """
     system, user = build_messages(item, passages)
     if item.question_type == "expression" and atlas_rows:
         user = _atlas.ATLAS_CONTEXT_TEMPLATE.format(rows=atlas_rows) + "\n" + user
+    if tool_evidence:
+        user = tool_evidence + "\n\n" + user
     messages = [
         {"role": "system", "content": system},
         {"role": "user",   "content": user},
