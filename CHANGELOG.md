@@ -39,6 +39,11 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
     (`chrN:start-end`) or source organism, via NCBI BLAST (first-HSP parse).
     Slow/rate-limited, so the headline pipeline precomputes these offline; the
     function is the self-contained live convenience.
+  - `blast_lookup(...)` — **cache-first** wrapper that reads the shipped
+    precomputed BLAST cache (`bioharness/data/blast_geneturing_cache.json`,
+    114 GeneTuring DNA-alignment answers) and only falls back to live BLAST on a
+    miss; wired into `precall_tools` so re-runs reproduce the alignment subtasks
+    instantly without hammering NCBI for hours.
   - The dbSNP/MyGene lookups are wired into `tools.precall_tools`, and
     `precall_tools` now feeds the **fast path** (`constrained_generate(...,
     tool_evidence=...)`) in addition to the agent / re-judgment stage — so the

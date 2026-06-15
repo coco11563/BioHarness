@@ -14,9 +14,12 @@ the public ~3 req/s cap.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -242,3 +245,32 @@ async def blast_align(
     finally:
         if owns and client is not None:
             await client.aclose()
+
+
+# Shipped offline BLAST cache (precomputed GeneTuring DNA-alignment answers) so
+# the slow/rate-limited NCBI BLAST is only hit for uncached sequences.
+_BLAST_CACHE_PATH = Path(__file__).resolve().parent.parent / "data" / "blast_geneturing_cache.json"
+
+
+def _seq_sha(sequence: str) -> str:
+    return hashlib.sha1((sequence or "").strip().encode()).hexdigest()[:16]
+
+
+async def blast_lookup(
+    sequence: str, *, mode: str = "genome",
+    cache_path: str | Path | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> str | None:
+    """Cache-first DNA alignment: read the shipped BLAST cache (offline, instant),
+    falling back to a live ``blast_align`` only on a cache miss. Prefer this over
+    ``blast_align`` for batch use so live NCBI BLAST is rarely hit.
+    """
+    seq = (sequence or "").strip()
+    path = Path(cache_path) if cache_path else _BLAST_CACHE_PATH
+    try:
+        hit = json.loads(path.read_text()).get(_seq_sha(seq))
+        if hit and hit.get("answer"):
+            return hit["answer"]
+    except Exception:
+        pass
+    return await blast_align(seq, mode=mode, client=client)

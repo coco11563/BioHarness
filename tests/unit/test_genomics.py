@@ -101,3 +101,21 @@ def test_parse_organism_hit():
     text = ">XM_001 Caenorhabditis elegans cosmid, complete sequence\nLength=200\n"
     assert parse_organism_hit(text) == "worm"
     assert parse_organism_hit("no organism here") is None
+
+
+@pytest.mark.asyncio
+async def test_blast_lookup_cache_first(tmp_path):
+    """A cache hit returns instantly without any live BLAST call."""
+    from bioharness.tools.genomics import _seq_sha, blast_lookup
+    seq = "ACGTACGTACGTACGTACGTACGT"
+    cache = tmp_path / "c.json"
+    cache.write_text(json.dumps({_seq_sha(seq): {"answer": "chr7:1-100", "mode": "genome"}}))
+    assert await blast_lookup(seq, cache_path=str(cache)) == "chr7:1-100"
+
+
+def test_shipped_blast_cache_loads():
+    """The packaged GeneTuring BLAST cache is present and well-formed."""
+    from bioharness.tools.genomics import _BLAST_CACHE_PATH
+    data = json.loads(_BLAST_CACHE_PATH.read_text())
+    assert len(data) > 50
+    assert all(v.get("answer") for v in data.values())

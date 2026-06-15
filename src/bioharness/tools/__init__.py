@@ -17,6 +17,7 @@ from bioharness.tools.genomics import (
     GeneGenomicRecord,
     SNPRecord,
     blast_align,
+    blast_lookup,
     gene_genomic_info,
     snp_lookup,
 )
@@ -34,6 +35,8 @@ REGISTRY: dict[str, str] = {
     "blast_align": "Align a DNA sequence to the human genome (-> chrN:start-end) "
                    "or identify its source organism via NCBI BLAST (slow; "
                    "precomputed offline in the headline pipeline).",
+    "blast_lookup": "Cache-first DNA alignment: read the shipped precomputed "
+                    "BLAST cache, falling back to live blast_align on a miss.",
 }
 
 
@@ -89,63 +92,66 @@ async def precall_tools(
         [gene_info(BRCA1)] symbol=BRCA1, name=..., chromosome=chr17, ...
     """
     q_lower = question.lower()
-    if not any(w in q_lower for w in _GENE_TRIGGER_WORDS):
-        return ""
-
-    entities = extract_gene_entities(question)
-    if not entities:
-        return ""
-
-    records: list[tuple[str, GeneRecord | None]] = []
-    for ent in entities:
-        rec = await resolve_gene(ent, client=http_client)
-        records.append((ent, rec))
-
     parts: list[str] = []
-    for ent, rec in records:
-        if rec is None or not rec.symbol:
-            continue
-        bits = [f"symbol={rec.symbol}"]
-        if rec.name:
-            bits.append(f"name={rec.name}")
-        if rec.chromosome:
-            bits.append(
-                f"chromosome={rec.chromosome} (use this exact format for "
-                "chromosome answers)"
-            )
-        if rec.cytoband:
-            bits.append(f"cytoband={rec.cytoband}")
-        if rec.aliases:
-            bits.append(f"aliases={list(rec.aliases)}")
-        parts.append(f"[gene_info({ent})] {', '.join(bits)}")
 
-    # Genomics lookups: dbSNP rs IDs -> gene/chromosome; and, for protein-coding
-    # / chromosome questions, gene -> chromosome + protein-coding status.
-    for rsid in re.findall(r"\brs\d{3,}\b", question, re.IGNORECASE)[:3]:
-        snp = await snp_lookup(rsid, client=http_client)
-        if snp is None:
-            continue
-        bits = []
-        if snp.gene:
-            bits.append(f"gene={snp.gene}")
-        if snp.chromosome:
-            bits.append(f"chromosome={snp.chromosome} (use this exact format)")
-        if bits:
-            parts.append(f"[snp_lookup({rsid})] {', '.join(bits)}")
+    # DNA alignment (BLAST, cache-first) — runs independently of gene-trigger
+    # words since these questions are bare DNA sequences.
+    if any(w in q_lower for w in ("align the dna", "which organism does the dna",
+                                  "dna sequence to the human genome")):
+        seq = question.split(":")[-1].strip()
+        if re.fullmatch(r"[ACGTNacgtn]{20,}", seq):
+            mode = "organism" if "organism" in q_lower else "genome"
+            ans = await blast_lookup(seq, mode=mode, client=http_client)
+            if ans:
+                label = "source_organism" if mode == "organism" else "genome_coordinates"
+                parts.append(f"[blast_lookup] {label}={ans} (use this exact answer)")
 
-    if any(w in q_lower for w in ("codes a protein", "protein-coding",
-                                  "protein coding", "which chromosome", "located on")):
+    # Gene / SNP / genomics lookups — gated on gene-trigger words.
+    if any(w in q_lower for w in _GENE_TRIGGER_WORDS):
+        entities = extract_gene_entities(question)
         for ent in entities:
-            gi = await gene_genomic_info(ent, client=http_client)
-            if gi is None:
+            rec = await resolve_gene(ent, client=http_client)
+            if rec is None or not rec.symbol:
+                continue
+            bits = [f"symbol={rec.symbol}"]
+            if rec.name:
+                bits.append(f"name={rec.name}")
+            if rec.chromosome:
+                bits.append(
+                    f"chromosome={rec.chromosome} (use this exact format for "
+                    "chromosome answers)"
+                )
+            if rec.cytoband:
+                bits.append(f"cytoband={rec.cytoband}")
+            if rec.aliases:
+                bits.append(f"aliases={list(rec.aliases)}")
+            parts.append(f"[gene_info({ent})] {', '.join(bits)}")
+
+        for rsid in re.findall(r"\brs\d{3,}\b", question, re.IGNORECASE)[:3]:
+            snp = await snp_lookup(rsid, client=http_client)
+            if snp is None:
                 continue
             bits = []
-            if gi.protein_coding_answer:
-                bits.append(f"protein_coding={gi.protein_coding_answer} (answer TRUE or FALSE)")
-            if gi.chromosome:
-                bits.append(f"chromosome={gi.chromosome} (use this exact format)")
+            if snp.gene:
+                bits.append(f"gene={snp.gene}")
+            if snp.chromosome:
+                bits.append(f"chromosome={snp.chromosome} (use this exact format)")
             if bits:
-                parts.append(f"[gene_genomic_info({ent})] {', '.join(bits)}")
+                parts.append(f"[snp_lookup({rsid})] {', '.join(bits)}")
+
+        if any(w in q_lower for w in ("codes a protein", "protein-coding",
+                                      "protein coding", "which chromosome", "located on")):
+            for ent in entities:
+                gi = await gene_genomic_info(ent, client=http_client)
+                if gi is None:
+                    continue
+                bits = []
+                if gi.protein_coding_answer:
+                    bits.append(f"protein_coding={gi.protein_coding_answer} (answer TRUE or FALSE)")
+                if gi.chromosome:
+                    bits.append(f"chromosome={gi.chromosome} (use this exact format)")
+                if bits:
+                    parts.append(f"[gene_genomic_info({ent})] {', '.join(bits)}")
 
     if not parts:
         return ""
@@ -155,5 +161,5 @@ async def precall_tools(
 __all__ = [
     "REGISTRY", "GeneRecord", "GeneGenomicRecord", "SNPRecord",
     "extract_gene_entities", "precall_tools", "resolve_gene",
-    "snp_lookup", "gene_genomic_info", "blast_align",
+    "snp_lookup", "gene_genomic_info", "blast_align", "blast_lookup",
 ]

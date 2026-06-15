@@ -1,0 +1,458 @@
+{
+"019ef6dd37dfb7f3": {
+"answer": "chr19:19162638-19162779",
+"mode": "genome"
+},
+"063951f7d04465f4": {
+"answer": "mouse",
+"mode": "organism"
+},
+"071b291873f24686": {
+"answer": "yeast",
+"mode": "organism"
+},
+"0805507ef4a0d060": {
+"answer": "chr7:71368450-71368551",
+"mode": "genome"
+},
+"08a940421a7cc298": {
+"answer": "rat",
+"mode": "organism"
+},
+"0cb28db534c2a45e": {
+"answer": "chr6:20935508-20935649",
+"mode": "genome"
+},
+"0f3300854968a1e5": {
+"answer": "mouse",
+"mode": "organism"
+},
+"11bf3fa1ac7183f7": {
+"answer": "chr1:20486790-20486921",
+"mode": "genome"
+},
+"11c07beeb20d3352": {
+"answer": "mouse",
+"mode": "organism"
+},
+"130d45139f9d571a": {
+"answer": "yeast",
+"mode": "organism"
+},
+"142f620b201d814d": {
+"answer": "rat",
+"mode": "organism"
+},
+"16191bbca00db01e": {
+"answer": "chr21:18084464-18084564",
+"mode": "genome"
+},
+"1aeb65cd0880313a": {
+"answer": "mouse",
+"mode": "organism"
+},
+"23292a4d407e75ee": {
+"answer": "worm",
+"mode": "organism"
+},
+"24e3a70fee162777": {
+"answer": "yeast",
+"mode": "organism"
+},
+"25e926bc457bab32": {
+"answer": "chr19:41724898-41725009",
+"mode": "genome"
+},
+"261efd5f19195810": {
+"answer": "chr1:116639178-116639297",
+"mode": "genome"
+},
+"2994e33fae6e6be8": {
+"answer": "mouse",
+"mode": "organism"
+},
+"2b8df52437c930ec": {
+"answer": "worm",
+"mode": "organism"
+},
+"35f88acb38e48b04": {
+"answer": "chr2:34350870-34351005",
+"mode": "genome"
+},
+"3668ac68e06857b7": {
+"answer": "chr10:121721897-121722042",
+"mode": "genome"
+},
+"373f7b9fffdeef77": {
+"answer": "mouse",
+"mode": "organism"
+},
+"38e785742b896cfc": {
+"answer": "mouse",
+"mode": "organism"
+},
+"3b2cac3a240eaac2": {
+"answer": "chr17:30085086-30085222",
+"mode": "genome"
+},
+"3b52299979d69dc9": {
+"answer": "worm",
+"mode": "organism"
+},
+"3b6b302a73ec3e2e": {
+"answer": "mouse",
+"mode": "organism"
+},
+"3dba9ad0d96395f8": {
+"answer": "chr3:156536294-156536419",
+"mode": "genome"
+},
+"3ebcf864918ffa94": {
+"answer": "chrX:96520716-96520841",
+"mode": "genome"
+},
+"3f2fbd1d0edac9e9": {
+"answer": "chicken",
+"mode": "organism"
+},
+"42cab670effa34e9": {
+"answer": "yeast",
+"mode": "organism"
+},
+"433e8de4ba7c6bc1": {
+"answer": "chr1:189568643-189568756",
+"mode": "genome"
+},
+"441de2389ac97dee": {
+"answer": "chr2:132111535-132111654",
+"mode": "genome"
+},
+"44f50c48d58bd01e": {
+"answer": "yeast",
+"mode": "organism"
+},
+"471a4c232e6a55ee": {
+"answer": "mouse",
+"mode": "organism"
+},
+"49cfdcbd5690153b": {
+"answer": "chr7:158890075-158890221",
+"mode": "genome"
+},
+"49e60596642d4f0e": {
+"answer": "worm",
+"mode": "organism"
+},
+"4ac7b32b3c46b8c6": {
+"answer": "rat",
+"mode": "organism"
+},
+"53b32b297f553ccf": {
+"answer": "chr11:37515333-37515467",
+"mode": "genome"
+},
+"5511d67b9b0f5b8d": {
+"answer": "human",
+"mode": "organism"
+},
+"55f8c01d16878db2": {
+"answer": "yeast",
+"mode": "organism"
+},
+"590b913cde9c9480": {
+"answer": "yeast",
+"mode": "organism"
+},
+"59e9f317624229c2": {
+"answer": "worm",
+"mode": "organism"
+},
+"649ad4f0392c9f2a": {
+"answer": "human",
+"mode": "organism"
+},
+"6820f5edb5feccb8": {
+"answer": "chr20:34383091-34383229",
+"mode": "genome"
+},
+"697d18995f3b5b5b": {
+"answer": "chicken",
+"mode": "organism"
+},
+"6d79e62b9b8185a1": {
+"answer": "mouse",
+"mode": "organism"
+},
+"71686189ce6d3b13": {
+"answer": "chr14:83950330-83950463",
+"mode": "genome"
+},
+"72bafb593f8d056c": {
+"answer": "chr10:96583669-96583777",
+"mode": "genome"
+},
+"733885e581f36021": {
+"answer": "chr6:119363354-119363488",
+"mode": "genome"
+},
+"759445273e134d8b": {
+"answer": "human",
+"mode": "organism"
+},
+"7bfd806f624a9aa0": {
+"answer": "human",
+"mode": "organism"
+},
+"7c5268edc798ac00": {
+"answer": "mouse",
+"mode": "organism"
+},
+"7ff6119cc98ff0d2": {
+"answer": "chicken",
+"mode": "organism"
+},
+"7ff8a61ffefb3f7a": {
+"answer": "mouse",
+"mode": "organism"
+},
+"87670a64bd189bc0": {
+"answer": "chicken",
+"mode": "organism"
+},
+"88c1a62a8e878445": {
+"answer": "rat",
+"mode": "organism"
+},
+"897b9ea3be59c668": {
+"answer": "chr2:93063432-93063557",
+"mode": "genome"
+},
+"89917e57030724c5": {
+"answer": "yeast",
+"mode": "organism"
+},
+"90edb6ae9fc6ad56": {
+"answer": "yeast",
+"mode": "organism"
+},
+"928253d1042eb0d0": {
+"answer": "chr18:45026043-45026168",
+"mode": "genome"
+},
+"9341662b16287536": {
+"answer": "chr1:234883857-234883957",
+"mode": "genome"
+},
+"99b120e9fbde7d07": {
+"answer": "chr19:23003880-23004012",
+"mode": "genome"
+},
+"9d50f0a1cb38b24a": {
+"answer": "chrX:98833089-98833232",
+"mode": "genome"
+},
+"a521f7f29f8d56d5": {
+"answer": "human",
+"mode": "organism"
+},
+"a7f039390fd95c7d": {
+"answer": "yeast",
+"mode": "organism"
+},
+"a91e157ea83ee1bb": {
+"answer": "chr7:124923900-124924043",
+"mode": "genome"
+},
+"a929d05c56c648b6": {
+"answer": "chr21:5618361-5618480",
+"mode": "genome"
+},
+"abccf8c74c2e3f0d": {
+"answer": "chr20:57571370-57571508",
+"mode": "genome"
+},
+"aec977de20e7a99b": {
+"answer": "yeast",
+"mode": "organism"
+},
+"b4a5b288c589678c": {
+"answer": "worm",
+"mode": "organism"
+},
+"b5901c73aa98db2d": {
+"answer": "worm",
+"mode": "organism"
+},
+"b7641964f2e1a7ed": {
+"answer": "mouse",
+"mode": "organism"
+},
+"b83fefefc4377cf2": {
+"answer": "mouse",
+"mode": "organism"
+},
+"b974cea23458cc76": {
+"answer": "worm",
+"mode": "organism"
+},
+"bb718d4f4127c0ab": {
+"answer": "mouse",
+"mode": "organism"
+},
+"bcd35eb98a4ac58b": {
+"answer": "mouse",
+"mode": "organism"
+},
+"bd6fb56fb44a1350": {
+"answer": "chr16:3779892-3780028",
+"mode": "genome"
+},
+"c0183ea8e63320e9": {
+"answer": "chr10:8432390-8432526",
+"mode": "genome"
+},
+"c3b740d3973e1e60": {
+"answer": "chr20:29228714-29228833",
+"mode": "genome"
+},
+"c885c4d5940d0656": {
+"answer": "yeast",
+"mode": "organism"
+},
+"caf5c9f5798456d8": {
+"answer": "chr18:41101663-41101773",
+"mode": "genome"
+},
+"cbf0760e8cc777ad": {
+"answer": "human",
+"mode": "organism"
+},
+"ccc88e1b31d464bd": {
+"answer": "chr18:54462342-54462470",
+"mode": "genome"
+},
+"cd435b589ce422d4": {
+"answer": "worm",
+"mode": "organism"
+},
+"cdbb0068c20ecb9e": {
+"answer": "chr17:9557107-9557213",
+"mode": "genome"
+},
+"cee1cfafd0ca83bf": {
+"answer": "yeast",
+"mode": "organism"
+},
+"cfbd3ab502af59ed": {
+"answer": "yeast",
+"mode": "organism"
+},
+"d02075d6b82d2c7e": {
+"answer": "chr6:25897419-25897555",
+"mode": "genome"
+},
+"d113d7d305d3444d": {
+"answer": "chr19:32322319-32322449",
+"mode": "genome"
+},
+"d452a339032eccc9": {
+"answer": "human",
+"mode": "organism"
+},
+"d52566d6a25833bd": {
+"answer": "chrX:71738552-71738687",
+"mode": "genome"
+},
+"d57377b4d39ee840": {
+"answer": "worm",
+"mode": "organism"
+},
+"d5bd3a9625a9b783": {
+"answer": "human",
+"mode": "organism"
+},
+"d60cc8be70e2009a": {
+"answer": "chr13:17541556-17541672",
+"mode": "genome"
+},
+"d656fc9219a1cf76": {
+"answer": "chr7:32588819-32588940",
+"mode": "genome"
+},
+"d948bacef42d11e6": {
+"answer": "chr15:91950805-91950932",
+"mode": "genome"
+},
+"db4d663af964391c": {
+"answer": "chr14:99402298-99402438",
+"mode": "genome"
+},
+"db5f93c972bea4a3": {
+"answer": "human",
+"mode": "organism"
+},
+"dcea8d93e21d34ae": {
+"answer": "human",
+"mode": "organism"
+},
+"de03874388a4e4f3": {
+"answer": "chr22:30683180-30683329",
+"mode": "genome"
+},
+"e04aab7fb87a3b01": {
+"answer": "chr10:7531973-7532108",
+"mode": "genome"
+},
+"e0aa7a758f0d0d58": {
+"answer": "worm",
+"mode": "organism"
+},
+"e0c9c4b7def14309": {
+"answer": "chr9:22210568-22210684",
+"mode": "genome"
+},
+"e3fc8bb72b635c00": {
+"answer": "human",
+"mode": "organism"
+},
+"e4300659c63b6878": {
+"answer": "mouse",
+"mode": "organism"
+},
+"e4870ba85435a7e3": {
+"answer": "chr6:163903884-163904010",
+"mode": "genome"
+},
+"eb9c6e16b2367a67": {
+"answer": "chr14:65272135-65272273",
+"mode": "genome"
+},
+"eca028450a27896e": {
+"answer": "worm",
+"mode": "organism"
+},
+"f3510e49dc208d1e": {
+"answer": "chr16:23611895-23612018",
+"mode": "genome"
+},
+"f522729bfee70cd9": {
+"answer": "worm",
+"mode": "organism"
+},
+"fb10618fe1a553dc": {
+"answer": "human",
+"mode": "organism"
+},
+"fd85b188f8807180": {
+"answer": "mouse",
+"mode": "organism"
+},
+"fea388b4c8ded048": {
+"answer": "worm",
+"mode": "organism"
+},
+"feeff9f20cfe4f79": {
+"answer": "chr9:8591402-8591503",
+"mode": "genome"
+}
+}
