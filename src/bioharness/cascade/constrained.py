@@ -1,9 +1,10 @@
 """Constrained answer generation, per-type prompts, and extraction.
 
-Prompt templates and per-type ``max_tokens`` budgets are the
-bioHarness headline values. The fast-path call always returns
-benchmark-shaped output (a single token for yesno/mcq, a short phrase
-for factoid, etc.) and the routing logprob is read off the same call.
+Prompt templates and per-type ``max_tokens`` budgets are this
+re-implementation's own; they differ from the paper's runs (see the
+README). The fast-path call always returns benchmark-shaped output (a
+single token for yesno/mcq, a short phrase for factoid, etc.) and the
+routing logprob is read off the same call.
 """
 
 from __future__ import annotations
@@ -144,7 +145,7 @@ MAX_TOKENS: dict[str, int] = {
 # The comma-separated prompt above produced 0/210 parseable answers (~6%
 # set-F1, a formatting artifact). With the atlas enabled (+D), inject the gene's
 # HPA tissue expression via ``atlas.build_expression_messages``.
-# See ``bioharness.cascade.atlas`` for the D component and ablation numbers.
+# See ``bioharness.cascade.atlas`` for the D component.
 # ----------------------------------------------------------------------
 from . import atlas as _atlas  # noqa: E402
 

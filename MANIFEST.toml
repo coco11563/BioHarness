@@ -1,23 +1,25 @@
-# bioHarness — headline-method manifest
+# BioHarness -- method-side manifest
 #
-# This package implements ``bioHarness`` — the headline-row method
-# (id ``pipeline``) reported in the bioHarness paper.
-# It is registered as a plugin under
-# ``framework_eval.methods`` so the eval harness in
-# ``coco11563/bioharness_eval_framework`` can score it directly.
+# This package is a re-implementation of the BioHarness cascade, registered
+# as the ``pipeline`` method under ``framework_eval.methods`` so the eval
+# harness in ``coco11563/BioHarness_Eval_Framework`` can run it.
 #
-# The data + scoring + verify-gate contract lives in the eval-framework
-# manifest; this manifest pins only what is owned here:
-#   * the framework-eval contract version we satisfy,
-#   * the cached-prompt smoke set used by ``verify.py`` (offline mode),
-#   * the live tolerance band reported in the paper.
+# It does NOT reproduce the paper's revised Table 1 columns (see README.md,
+# "What this package does not reproduce"). The research code that produced
+# the paper's numbers is in ``paper_reproduction/``; the per-item outputs
+# that verify the BioHarness row offline are in the eval framework.
 #
-# Replace ``{model}`` with your inference backend identity when reading
-# the docs that reference this manifest.
+# This manifest pins:
+#   * the framework-eval contract version this package satisfies,
+#   * the paper's headline numbers (for reference; verified by the eval
+#     framework, not by this package),
+#   * the infrastructure the package expects.
+# No offline cached smoke set has been recorded, so there is no [smoke_set]
+# section and ``verify.py`` skips that check.
 
 schema_version = "1"
-manifest_id    = "bioharness-pipeline-2026-04-28"
-created_utc    = "2026-04-28T00:00:00Z"
+manifest_id    = "bioharness-pipeline-2026-09-24"
+created_utc    = "2026-09-24T00:00:00Z"
 
 # ---------------------------------------------------------------------------
 # Framework contract
@@ -27,48 +29,40 @@ required_version_range = ">=0.1.0,<1"
 plugin_entry_point     = "pipeline"
 
 # ---------------------------------------------------------------------------
-# Headline numbers reported by the paper (eval-framework canonical run)
+# Headline numbers reported by the paper (revised Table 1, BioHarness row)
 # ---------------------------------------------------------------------------
+# Official metric: per item, token-F1 for factoid items, otherwise the stored
+# type-specific score; one record per id; mean per dataset. ``continuous_mean``
+# is Overall9: the pooled per-item mean over the nine datasets other than
+# LitQA2 (i.e. weighted by full dataset size). ``binary_accuracy`` is the
+# secondary metric on the same items. These values come from the paper's
+# research runs and are reproduced offline from the stored per-item scores by
+# the eval framework's verify.py; a live run of this package does not
+# reproduce them, so there is no live tolerance band.
 [headline]
 method_id              = "pipeline"
-total_items            = 19302
-binary_accuracy        = 0.766035
-continuous_mean        = 0.691446
+source                 = "paper research runs (paper_reproduction/; per-item outputs in the eval framework snapshot), not this package"
+total_items            = 21752
+binary_accuracy        = 0.740943
+continuous_mean        = 0.672131
 
-# ---------------------------------------------------------------------------
-# Live re-run tolerance bands
-# ---------------------------------------------------------------------------
-# When ``verify.py --live`` re-runs the headline method end-to-end against
-# user-provided infrastructure, results vary with backend stochasticity.
-# These bounds match ``framework-eval``'s [verify.live] table.
-[verify.live]
-total_items              = 19302
-accuracy_tolerance_pp    = 2.5
-max_per_item_flip_rate   = 0.05
-slice_binomial_se_check  = true
-
-# ---------------------------------------------------------------------------
-# Offline smoke set
-# ---------------------------------------------------------------------------
-# A small (50 item) cached prompt+response set verifies that the cascade
-# pipeline glue is intact without requiring a live LLM stack. Hashes are
-# filled by ``scripts/build_cached_smoke.py`` once the real recordings
-# exist; until then verify.py treats ``TBD-*`` as a skip.
-[smoke_set]
-relative_path = "golden/cached_smoke.jsonl"
-items         = 50
-sha256        = "TBD-SET-ON-FIRST-RECORDING"
+# LitQA2 (199 items) is reported separately and is not part of Overall9.
+# Single spliced run, not held out; the three-run mean of the earlier
+# configuration is 0.578.
+[headline.supplementary.litqa2]
+total_items            = 199
+continuous_mean        = 0.618090
 
 # ---------------------------------------------------------------------------
 # Required user-provided infrastructure (see docs/infra.md)
 # ---------------------------------------------------------------------------
 [infra.services]
-llm                  = "OpenAI-compatible chat completion (e.g. {model} via vLLM)"
+llm                  = "OpenAI-compatible chat completion (the paper used Qwen3.5-35B-A3B via vLLM, enable_thinking=False)"
 embedding            = "OpenAI-compatible embedding (Qwen3-Embedding-0.6B or equivalent, 1024-dim)"
-reranker             = "OpenAI-compatible rerank endpoint (Qwen3-Reranker-8B or equivalent)"
+reranker             = "Qwen3-Reranker-8B via /v1/completions with logprobs (raw template), or a /v1/rerank endpoint"
 qdrant               = "Qdrant collection holding the PubMed corpus embeddings (1024-dim)"
-postgres             = "PubMed metadata + full-text mirrors (read-only)"
-disco_atlas          = "Optional single-cell expression atlas; required only with --enable-disco"
+postgres             = "PubMed metadata + full-text mirrors (read-only); probed by `bioharness doctor`, not used by the in-tree cascade"
+atlas                = "Optional HPA tissue-expression endpoint (not released); used only with BIOHARNESS_ENABLE_ATLAS=1"
 
 [infra.env_vars]
 BIOHARNESS_LLM_URL          = "default http://127.0.0.1:8000/v1"
@@ -77,4 +71,4 @@ BIOHARNESS_RERANK_URL       = "default http://127.0.0.1:8001/v1"
 BIOHARNESS_QDRANT_URL       = "default http://127.0.0.1:13335"
 BIOHARNESS_PUBMED_PG        = "default postgresql://localhost:5432/paper-graph-pubmed"
 BIOHARNESS_PAPERGRAPH_PG    = "default postgresql://localhost:5432/papergraph"
-BIOHARNESS_MODEL_NAME       = "default {model}"
+BIOHARNESS_MODEL_NAME       = "default Qwen3.5-35B-A3B"

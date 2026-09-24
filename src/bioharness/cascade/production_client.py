@@ -1,18 +1,18 @@
 """Full-delegation cascade client.
 
-When the production source tree is available (``BIOHARNESS_PRODUCTION_SRC``
-or sibling-detection), this class wraps the *entire* in-house production
-cascade class from ``scripts/run_unified_benchmark.py`` and adapts it
-to the ``framework_eval.plugins.QAClient`` protocol. Every stage —
-retrieval, dual-rerank with the production-tuned rewrite+neg query
-pool, constrained generation with logprob confidence, grounded gate,
-agent escalation, and re-judgment — is the production code path, not a
-re-implementation.
+When ``BIOHARNESS_PRODUCTION_SRC`` points at the research source tree
+(``paper_reproduction/``), this class wraps the research cascade class
+from ``scripts/run_unified_benchmark.py`` and adapts it to the
+``framework_eval.plugins.QAClient`` protocol. Every stage runs the
+research code path, not a re-implementation.
 
-Use this client when "exactly aligned" matters. The simpler in-tree
-``PipelineCascadeClient`` in :mod:`bioharness.cascade.client` remains
-the default for fully self-contained installs that do not have the
-production source tree available.
+It does **not** reproduce any Table 1 cell: it builds ``V14CascadeClient``
+without any ``XC_*`` flag and without ``XC_V14_PROMPT_FILE``, so it uses
+the ``V_cur`` prompt, the chat-completions reranker path, no official MCQ
+protocol and no full-text chunks. The per-cell configurations are the
+scripts in ``paper_reproduction/runs/``. This path was not tested for the
+release. The in-tree ``PipelineCascadeClient`` in
+:mod:`bioharness.cascade.client` remains the default.
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ def _load_production_pipeline_class() -> type[Any]:
     root = _production_src_root()
     if root is None:
         raise RuntimeError(
-            "BIOHARNESS_PRODUCTION_SRC is not set and no sibling "
-            "PaperAsKnowledgeGraph-RAG directory was found."
+            "BIOHARNESS_PRODUCTION_SRC is not set; point it at the research "
+            "source tree (paper_reproduction/)."
         )
     if root not in sys.path:
         sys.path.insert(0, root)

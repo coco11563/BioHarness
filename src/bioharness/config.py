@@ -9,7 +9,7 @@ The one user-facing knob is ``force_agent``: when True, every item
 bypasses the constrained-generation fast path and is routed through the
 agent escalation + re-judgment stages. Useful for ablation runs that
 want to measure the agent's contribution in isolation; off by default
-because the cascade fast-path is faster and (on the bioHarness
+because the cascade fast-path is faster and (on the BioHarness
 headline) more accurate on average.
 """
 
@@ -80,7 +80,7 @@ class ServiceConfig:
                 "BIOHARNESS_PAPERGRAPH_PG",
                 "postgresql://localhost:5432/papergraph",
             ),
-            model_name  = _env("BIOHARNESS_MODEL_NAME", "{model}"),
+            model_name  = _env("BIOHARNESS_MODEL_NAME", "Qwen3.5-35B-A3B"),
             api_key     = _env("BIOHARNESS_API_KEY",    "EMPTY"),
             force_agent = _env_bool("BIOHARNESS_FORCE_AGENT", False),
             atlas_url    = _env("BIOHARNESS_ATLAS_URL", "http://127.0.0.1:8443"),
@@ -98,11 +98,11 @@ class ServiceConfig:
         }
 
 
-# Fixed cascade constants used by the bioHarness headline configuration.
+# Fixed cascade constants of this re-implementation.
 # These were tuned together with the prompt templates; do not edit without
 # re-recording the cached smoke set.
 CASCADE_THRESHOLD     = 0.7      # logprob-derived confidence below which we escalate
 RETRIEVAL_TOP_K       = 20       # dense retrieval before rerank
-RERANK_TOP_K          = 20       # passages handed to constrained generation (matches pipeline top_k=20)
+RERANK_TOP_K          = 20       # passages handed to constrained generation (pipeline top_k=20)
 MAX_AGENT_ITERATIONS  = 8        # upper bound for the agent escalation hook
 DENSE_COLLECTION      = "paper-full"

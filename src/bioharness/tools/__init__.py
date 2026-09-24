@@ -1,6 +1,6 @@
 """Tool registry + pre-call dispatch.
 
-The bioHarness headline pipeline pre-calls a small set of entity-lookup
+The BioHarness headline pipeline pre-calls a small set of entity-lookup
 tools before agent escalation so the agent (and the constrained
 re-judgment stage) sees authoritative gene / protein / pathway data.
 This module implements the open-source equivalent of that pre-call.

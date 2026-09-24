@@ -120,7 +120,7 @@ def _cmd_config(_args: argparse.Namespace) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bioharness",
-        description="bioHarness — adaptive cascade utilities.",
+        description="BioHarness — adaptive cascade utilities.",
     )
     parser.add_argument("--version", action="version", version=__version__)
 

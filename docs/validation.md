@@ -1,34 +1,44 @@
-# Live-stack validation against the production headline run
+# Small-sample check: this package vs. the paper's run outputs
 
-This document captures the most recent end-to-end validation of
-`bioHarness` (the open-source cascade) against the production
-bioHarness snapshot reported in the paper. Both runs used the same
-items from `Shaow/GeneKnowledgeEval`; the difference is the inference
-stack:
+> **Read this first.** This package is a re-implementation of BioHarness
+> and does not reproduce the revised Table 1 columns (see the README,
+> "What this package does not reproduce"). The research code that
+> produced the paper's numbers is in `paper_reproduction/`, and the
+> per-item outputs that verify the BioHarness row offline are in
+> [BioHarness_Eval_Framework](https://github.com/coco11563/BioHarness_Eval_Framework).
+> The comparison below is kept as a record of how far the package is from
+> those outputs. It predates the revision and has not been re-run.
 
-| Layer | Production snapshot | OSS validation |
+Scope and caveats of this check:
+
+- It covers the eight original datasets only (MedXpertQA and LitQA2 were
+  added later) and uses **binary accuracy** (the per-item `correct`
+  field), not the paper's official token-F1 metric.
+- The items come from the benchmark now hosted as
+  [`Shaow/BioHarness_Eval`](https://huggingface.co/datasets/Shaow/BioHarness_Eval).
+- The "Prod" column is the paper's April run outputs for the same items,
+  as they stood before the revision (see Methodology).
+- The package run used the package's **earlier** reranker, a generic
+  chat-completions yes/no scorer. It has since been replaced by the
+  Qwen3-Reranker raw completion template (`src/bioharness/clients/rerank.py`),
+  so a re-run would differ.
+
+| Layer | Paper run ("Prod") | Package run ("OSS") |
 | --- | --- | --- |
-| LLM | served {model} on user GPU cluster | same |
+| LLM | Qwen3.5-35B-A3B | same |
 | Embedding | Qwen3-Embedding-0.6B (1024-dim) | same |
-| Reranker | Qwen3-Reranker-8B (logprob mode) | same |
+| Reranker | Qwen3-Reranker-8B, research-code scorer | Qwen3-Reranker-8B, earlier package scorer (different prompt and scoring) |
 | Qdrant collection | `paper-full` (27.3 M docs) | same |
-| Postgres | PubMed mirror + papergraph | papergraph not used |
+| Agent | multi-iteration V14 REPL agent with tools | single LLM call over the stage-1 passages |
+| Postgres | PubMed mirror + papergraph | not used |
 
-The OSS pipeline implements the seven-stage cascade
-(rewrite → triple retrieval → dual rerank → constrained generation +
-first-token confidence → grounded gate → agent escalation hook →
-constrained re-judgment) with the same prompts and the same per-type
-`max_tokens` budget as the production snapshot. It does **not** ship:
-
-- the entity-lookup tool registry (gene resolver, UniProt, GO,
-  ChEMBL) that the production agent escalates into for factoid items;
-- the multi-iteration `BiomedicalRLMPipeline` REPL agent that the
-  production cascade uses on list-type items to enumerate synonym
-  groups.
-
-The default `_agent` hook in `cascade/client.py` is a single-shot LLM
-call; users who need the heavier agent should subclass
-`PipelineCascadeClient` and override that hook (see `docs/adapter.md`).
+The package implements the cascade shape (rewrite, triple retrieval,
+rerank, constrained generation with first-token confidence, grounded gate,
+agent escalation hook, constrained re-judgment), but its prompts, caps,
+escalation conditions and agent differ from the paper's runs. The default
+`_agent` hook in `cascade/client.py` is a single-shot LLM call; users who
+need a heavier agent can subclass `PipelineCascadeClient` and override that
+hook (see `docs/adapter.md`).
 
 ## Methodology
 
@@ -37,10 +47,13 @@ call; users who need the heavier agent should subclass
   introduced HTTP 408 timeouts).
 - The OSS run executes through the same `framework-eval run` CLI that
   any user would invoke.
-- The "Prod" column reads the per-item `correct` field from the run
-  snapshot shipped in
-  `bioharness_eval_framework/output/pipeline/`
-  (the paper-headline jsonl), filtered to the same item ids.
+- The "Prod" column was read from the per-item `correct` field of the
+  April run snapshot then shipped in
+  `BioHarness_Eval_Framework/output/pipeline/`, filtered to the same item
+  ids. That snapshot has since been replaced by the revised outputs (GeneTuring genomics re-run,
+  BioASQ with the DISCO merge, SciHorizon expression case study,
+  MedXpertQA, LitQA2), so the Prod column cannot be regenerated from the
+  current snapshot.
 - Each row reports `correct / n` exactly as the in-tree evaluator
   records it; question types map 1:1 to the binarisation table in
   the eval framework.
@@ -49,18 +62,17 @@ call; users who need the heavier agent should subclass
 
 | Question type | n | OSS | Prod | gap | Status |
 | --- | ---: | ---: | ---: | ---: | --- |
-| `summary`     |   4 | 0.750 | 0.750 |  +0.0 pp | aligned |
-| `mcq`         | 150 | 0.673 | 0.727 |  −5.3 pp | aligned (within binomial SE) |
-| `yesno`       |  39 | 0.897 | 1.000 | −10.3 pp | aligned (within ~2 SE) |
-| `factoid`     |  37 | 0.270 | 0.730 | −45.9 pp | **not aligned** — entity tools not ported |
+| `summary`     |   4 | 0.750 | 0.750 |  +0.0 pp | no gap (n=4) |
+| `mcq`         | 150 | 0.673 | 0.727 |  −5.3 pp | within binomial SE |
+| `yesno`       |  39 | 0.897 | 1.000 | −10.3 pp | within ~2 SE |
+| `factoid`     |  37 | 0.270 | 0.730 | −45.9 pp | **not aligned** — agent and tools differ |
 | `list`        |  10 | 0.500 | 1.000 | −50.0 pp | **not aligned** — REPL agent not ported |
 | **Total**     | 240 | 0.642 | 0.783 | −14.2 pp | dominated by factoid + list |
 
-If the validation is restricted to the question types whose production
-behaviour the OSS pipeline implements end-to-end
-(`mcq + yesno + summary`, n=193), the gap is
-**−6.7 pp** with prod at 0.768 — inside the 95 % binomial CI of
-±6.0 pp at n=193.
+Restricted to the question types with the smallest gaps
+(`mcq + yesno + summary`, n=193), the package scores 139/193 = 0.720 and
+the paper run 151/193 = 0.782, a gap of **−6.2 pp** (computed from the
+per-dataset table below).
 
 ## Per-dataset breakdown (n=30 each)
 
@@ -82,29 +94,21 @@ behaviour the OSS pipeline implements end-to-end
 
 | Run | n | acc | pred distribution |
 | --- | ---: | ---: | --- |
-| Prod  | 200 | 0.955 | 191 yes / 16 no |
+| Prod  | 200 | 0.955 | not available |
 | OSS   | 200 | 0.900 | 167 yes / 26 no / 7 empty |
 
 The 7 empty predictions correspond to transient HTTP 408 timeouts
 from the local LLM stack; on completed items the equivalent accuracy
 is 180 / 193 = **0.933** (gap −2.2 pp).
 
-## What closes the remaining gap
+## Where the gap comes from
 
-- **factoid (entity-lookup)** — the production agent escalates these
-  to a tool-aware pipeline that queries the gene resolver, UniProt,
-  and GO. Implementing the `bioharness.tools.REGISTRY` callables
-  and wiring them into a subclass that overrides `_agent` is the
-  expected fix; the registry contract is defined but stubbed in this
-  release.
-- **list (set enumeration)** — the production agent runs a
-  multi-iteration REPL that explores synonym groups before
-  rejudgment. Subclassing `_agent` to call the in-house
-  `BiomedicalRLMPipeline` (or any other multi-step agent) closes
-  this gap without changing the cascade contract.
+- **factoid (entity lookup)** and **list (set enumeration)**: the paper
+  escalates these into the multi-iteration V14 REPL agent with retrieval,
+  MeSH, full-text and entity tools. The package escalates into a single
+  LLM call with pre-called gene / genomics evidence.
+- **mcq and yesno**: smaller gaps. Their causes were not isolated;
+  prompts, context caps and the reranker all differ.
 
-The OSS pipeline ships the architecture, prompts, retrieval, rerank,
-cascade routing, grounded gate, and constrained re-judgment exactly
-matching the production headline run. The remaining gap is in the
-agent escalation surface, which is deliberately a pluggable extension
-point and not a fixed implementation in this release.
+The full list of differences is in the README. None of the numbers above
+should be read as the package reproducing the paper.

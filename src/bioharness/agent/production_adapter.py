@@ -6,11 +6,15 @@ is a single-pass LLM call; it is sufficient for ``yesno`` / ``mcq`` /
 ``factoid`` items where the production cascade uses the multi-iteration
 ``BiomedicalRLMPipeline`` (REPL + tool dispatch + evidence-state).
 
-When the user has the production source tree available locally, this
-adapter wires the real pipeline into Chi's ``_agent`` hook so the agent
-escalation is **identical** to the headline run:
+When the research source tree is available locally, this adapter wires
+its multi-iteration pipeline into the cascade's ``_agent`` hook:
 
-  export BIOHARNESS_PRODUCTION_SRC=/path/to/PaperAsKnowledgeGraph-RAG
+  export BIOHARNESS_PRODUCTION_SRC=/path/to/BioHarness/paper_reproduction
+
+This delegates the agent stage only; the rest of the cascade is still the
+in-tree re-implementation, so the result does not reproduce any Table 1
+cell (the paper's per-cell configurations are in
+``paper_reproduction/runs/``). This path was not tested for the release.
 
 The adapter then loads ``src.rlm.pipeline.BiomedicalRLMPipeline`` and
 delegates to it. When ``BIOHARNESS_PRODUCTION_SRC`` is unset, callers
@@ -41,21 +45,12 @@ LOGGER = logging.getLogger(__name__)
 def _production_src_root() -> str | None:
     """Resolve the path that should be added to ``sys.path``.
 
-    Order of precedence:
-      1. ``BIOHARNESS_PRODUCTION_SRC`` env var (must point at the directory
-         that contains ``src/rlm/pipeline.py``).
-      2. A sibling ``PaperAsKnowledgeGraph-RAG`` directory next to the
-         current working directory (covers a common dev layout).
-    Returns ``None`` if neither resolves.
+    Only the ``BIOHARNESS_PRODUCTION_SRC`` env var is used (it must point
+    at the directory that contains ``src/rlm/pipeline.py``); there is no
+    auto-detection, so the default ``pipeline`` agent never changes
+    silently. Returns ``None`` when the variable is unset.
     """
-    explicit = os.environ.get("BIOHARNESS_PRODUCTION_SRC")
-    if explicit:
-        return explicit
-    cwd = os.getcwd()
-    sibling = os.path.join(os.path.dirname(cwd), "PaperAsKnowledgeGraph-RAG")
-    if os.path.isdir(os.path.join(sibling, "src", "rlm")):
-        return sibling
-    return None
+    return os.environ.get("BIOHARNESS_PRODUCTION_SRC") or None
 
 
 _PIPELINE_CACHE: tuple[Any, Any] | None = None
@@ -75,10 +70,9 @@ def _load_production_pipeline() -> tuple[Any, Any]:
     root = _production_src_root()
     if root is None:
         raise RuntimeError(
-            "BIOHARNESS_PRODUCTION_SRC is not set and no sibling "
-            "PaperAsKnowledgeGraph-RAG directory was found. The production "
-            "REPL agent cannot be loaded; set the env var or install the "
-            "production source tree."
+            "BIOHARNESS_PRODUCTION_SRC is not set. The research REPL agent "
+            "cannot be loaded; point the env var at the research source tree "
+            "(paper_reproduction/)."
         )
     if root not in sys.path:
         sys.path.insert(0, root)

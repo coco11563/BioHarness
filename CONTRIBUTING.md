@@ -1,11 +1,12 @@
-# Contributing to bioHarness
+# Contributing to BioHarness
 
 ## Development setup
 
 ```bash
-git clone https://github.com/coco11563/bioHarness.git
-cd bioHarness
+git clone https://github.com/coco11563/BioHarness.git
+cd BioHarness
 python -m venv .venv && source .venv/bin/activate
+pip install "git+https://github.com/coco11563/BioHarness_Eval_Framework.git"
 pip install -e ".[dev]"
 pre-commit install
 ```
@@ -33,12 +34,19 @@ any of:
 
 you must also:
 
-1. Bump the bioharness version in `pyproject.toml`.
-2. Re-record the offline cached smoke set with `scripts/build_cached_smoke.py`
-   and update `golden/cached_smoke.jsonl` + the `[smoke_set]` hash in
-   `MANIFEST.toml`.
-3. Document the user-visible impact in `docs/ablations.md`.
-4. Add a `CHANGELOG.md` entry.
+1. Add a `CHANGELOG.md` entry describing the user-visible impact. The
+   version in `pyproject.toml` is bumped at release time, not per change.
+2. If an offline cached smoke set has been recorded (`golden/`, written by
+   `scripts/build_cached_smoke.py`; none is recorded yet), re-record it and
+   add its hash as a `[smoke_set]` section in `MANIFEST.toml`.
+
+## `paper_reproduction/` is frozen
+
+`paper_reproduction/` is the research code (September 2026 state) behind
+the paper's numbers. Do not modify or reformat it; it is
+excluded from ruff linting and formatting (`paper_reproduction/ruff.toml`).
+Corrections to its documentation go in its README; changes to its code
+belong in a separate, clearly labelled release note.
 
 ## Forbidden content
 
@@ -48,6 +56,6 @@ local tooling names, or credentials. The full list lives in that script.
 
 ## Reporting issues
 
-Open an issue at <https://github.com/coco11563/bioHarness/issues>
+Open an issue at <https://github.com/coco11563/BioHarness/issues>
 with the failing command, full traceback, OS / Python version, and the
 manifest id (`python verify.py --print-manifest-id`).

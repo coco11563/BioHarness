@@ -33,7 +33,7 @@ htmlcov/
 .env.local
 secrets/
 
-# User runs (do not commit); offline cached smoke under golden/ is always tracked.
+# User runs (do not commit).
 runs/
 output/
 .cache/huggingface/

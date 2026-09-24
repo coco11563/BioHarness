@@ -1,0 +1,10 @@
+# The repository-level .gitignore ignores every directory named runs/ (user run output).
+# paper_reproduction/runs/ holds the release's run scripts, so re-include it here.
+!runs/
+# Local endpoint settings for the run scripts (copy of runs/env.example.sh).
+runs/env.sh
+# Artefacts the reproduction scripts create.
+.ref_project/
+.cache/
+output/
+benchmark/unified/

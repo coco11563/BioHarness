@@ -33,8 +33,14 @@ def test_package_imports() -> None:
 def test_manifest_parses() -> None:
     data = tomllib.loads((ROOT / "MANIFEST.toml").read_text())
     assert data["framework_eval"]["plugin_entry_point"] == "pipeline"
-    assert data["headline"]["total_items"] == 19302
-    assert data["headline"]["binary_accuracy"] == 0.766035
+    headline = data["headline"]
+    # Revised Table 1: Overall9 67.2 over 21,752 scored items; LitQA2 separate.
+    assert headline["total_items"] == 21752
+    assert headline["continuous_mean"] == 0.672131
+    assert headline["binary_accuracy"] == 0.740943
+    litqa2 = headline["supplementary"]["litqa2"]
+    assert litqa2["total_items"] == 199
+    assert litqa2["continuous_mean"] == 0.618090
 
 
 def test_cli_version() -> None:

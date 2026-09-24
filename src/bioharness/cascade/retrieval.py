@@ -62,10 +62,17 @@ async def dual_rerank(
     *,
     top_k: int,
 ) -> list[float]:
-    """Cross-encoder rerank; returns scores aligned with the input order."""
+    """Cross-encoder rerank; returns scores aligned with the input order.
+
+    Each passage is scored as ``"{title}\\n{text}"`` (title from the Qdrant
+    payload when present), matching the research pipeline's reranker input.
+    """
     if not passages:
         return []
-    texts = [(p.get("text") or "") for p in passages]
+    texts = [
+        f"{(p.get('metadata') or {}).get('title') or ''}\n{p.get('text') or ''}".strip()
+        for p in passages
+    ]
     try:
         return await rerank_client.score(question, texts, top_k=top_k)
     except Exception as exc:

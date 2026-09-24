@@ -1,4 +1,4 @@
-"""PipelineCascadeClient: the bioHarness headline method.
+"""PipelineCascadeClient: re-implementation of the BioHarness cascade.
 
 Pipeline shape (single best-config configuration, no ablation flags):
 
@@ -10,8 +10,7 @@ Pipeline shape (single best-config configuration, no ablation flags):
                 AND item is yesno  -> return fast-path answer
             else                    -> agent escalation + constrained re-judgment
                                        (yesno still uses the fast path because
-                                        the agent over-analyses; this matches
-                                        the paper §5.2 finding)
+                                        the agent over-analyses)
 
 The single user-facing knob is ``ServiceConfig.force_agent``: when True,
 every non-yesno item bypasses the fast path. yesno always takes the fast
@@ -21,9 +20,10 @@ path even with ``force_agent`` because the agent introduces a documented
 Every stage is a stable extension point: subclass ``PipelineCascadeClient`` and
 override ``_retrieve``, ``_fast_path``, ``_agent``, or ``_rejudge`` to plug
 in a heavier or differently-tuned implementation while keeping the cascade
-routing intact. To reach the published headline numbers on the full
-19,302-item benchmark you must connect a live LLM stack (see
-``docs/infra.md``).
+routing intact. This in-tree cascade is a re-implementation: it needs a
+live LLM stack (see ``docs/infra.md``) and does not reproduce the paper's
+Table 1 columns (see the README for the gaps and for the exact research
+code under ``paper_reproduction/``).
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ class AgentOutcome:
 
 
 class PipelineCascadeClient:
-    """Headline bioHarness method registered as ``pipeline``."""
+    """Re-implementation of the BioHarness cascade, registered as ``pipeline``."""
 
     name = "pipeline"
 
@@ -119,7 +119,7 @@ class PipelineCascadeClient:
 
         # yesno and expression always return the fast-path answer:
         #  - yesno: the agent over-analyses and introduces a documented 'no'
-        #    bias (paper §5.2);
+        #    bias;
         #  - expression: the repair-context fast path (literature base + atlas
         #    repair) IS the complete answer. Escalating would discard the +D
         #    atlas signal and diverge from the production pipeline, which
@@ -311,10 +311,10 @@ class PipelineCascadeClient:
         """REPL agent escalation hook.
 
         Resolution order:
-          1. If ``BIOHARNESS_PRODUCTION_SRC`` points at a working
-             PaperAsKnowledgeGraph-RAG tree, delegate to the full
-             production ``BiomedicalRLMPipeline`` (multi-iteration REPL +
-             tool dispatch). This is the "exactly aligned" path.
+          1. If ``BIOHARNESS_PRODUCTION_SRC`` points at a working research
+             source tree (``paper_reproduction/``), delegate to its
+             ``BiomedicalRLMPipeline`` (multi-iteration REPL + tool
+             dispatch). The other stages stay the re-implementation.
           2. Otherwise fall back to the in-tree single-pass agent that
              ships with this package.
         """

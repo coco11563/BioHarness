@@ -1,0 +1,44 @@
+# Third-party dependencies of the paper-reproduction code, derived from the imports in
+# this directory and pinned to the versions installed in the research environment
+# (CPython 3.12.12). Install with:
+#   pip install -r requirements.txt
+#   pip install --no-deps -r requirements-graspologic.txt
+#
+# The Recursive Language Models library ("rlm", version 0.1.0) is NOT installed from
+# PyPI: the PyPI distribution "rlms==0.1.0" is a later, different code base. The research
+# runs used upstream commit db41d150faf10425f18b415dd655543a227c552e plus a small local
+# patch; run third_party/setup_rlm.sh to reproduce that exact copy.
+
+# retrieval, storage and HTTP
+aiohttp==3.13.3
+asyncpg==0.31.0
+httpx==0.28.1
+qdrant-client==1.14.2
+openai==2.15.0
+tiktoken==0.12.0
+numpy==2.2.6
+
+# scoring
+rouge-score==0.1.2
+
+# graph baselines (GraphRAG / PathRAG / LightRAG ports)
+networkx==3.6.1
+# graspologic (hierarchical Leiden for the GraphRAG port) is installed separately,
+# without dependency resolution: see requirements-graspologic.txt.
+
+# biomedical resolvers and web search tools
+chembl-webresource-client==0.10.9
+goatools==1.5.2
+ddgs==9.10.0
+
+# PMC full-text schema (alembic/versions/)
+SQLAlchemy==2.0.45
+alembic==1.18.0
+
+# runtime dependencies of rlm 0.1.0 at the pinned commit (installed by setup_rlm.sh too)
+anthropic==0.75.0  # noqa: framework-eval-forbidden (rlm dependency)
+google-genai==1.57.0
+portkey-ai==2.1.0
+python-dotenv==1.2.1
+requests==2.32.5
+rich==14.2.0

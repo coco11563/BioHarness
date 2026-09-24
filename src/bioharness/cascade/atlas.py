@@ -21,22 +21,8 @@ vocabulary. The ``D`` component has two halves:
    :8443). ``build_expression_messages(question, atlas_rows=...)`` /
    ``atlas_rows_from_hpa(...)`` are the standalone helpers behind the wiring.
 
-Ablation that motivates both halves (SciHorizon expression, non-empty GT,
-n=175, benchmark expression set-F1, threshold 0.3)::
-
-    upstream free-text prompt          ~6.0          (formatting artifact)
-    -D  (format/recall, ships here)    65.3  [60.5, 70.2]   <- default path
-    +D  (atlas-as-context)             78.8  [74.4, 83.1]   +13.5 pp vs -D,
-                                                            McNemar p < 1e-12
-    atlas-only (direct HPA lookup)     73.9               (+D also beats it)
-
-So most of the gain over the broken upstream prompt is the format fix (ships);
-the further +13.5 pp needs the atlas backend (hook provided here). The
-expression GT is derived from **NCBI Gene** annotations while the atlas is
-**HPA** — two independent bulk-RNA databases, so +D is legitimate
-cross-database structured-knowledge retrieval (correlated ~0.9 by shared
-modality), not feeding the answer key, and the effect is not unique to
-single-cell resolution.
+The paper reports atlas context as a post-hoc case study applied to
+BioHarness alone (Table 1, footnote a); see ``paper_reproduction/README.md``.
 """
 
 from __future__ import annotations

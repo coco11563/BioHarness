@@ -1,0 +1,212 @@
+diff -ruN a/rlm/clients/openai.py b/rlm/clients/openai.py
+--- a/rlm/clients/openai.py
++++ b/rlm/clients/openai.py
+@@ -37,8 +37,11 @@
+                 api_key = DEFAULT_OPENROUTER_API_KEY
+
+         # For vLLM, set base_url to local vLLM server address.
+-        self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
+-        self.async_client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
++        # Explicit per-request timeout: the default left socketserver worker threads
++        # blocked in a synchronous read for hours after the server dropped the
++        # request (2026-09-08 benchmark hang); one retry is enough over a local tunnel.
++        self.client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=600.0, max_retries=1)
++        self.async_client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=600.0, max_retries=1)
+         self.model_name = model_name
+
+         # Per-model usage tracking
+@@ -59,12 +62,15 @@
+         if not model:
+             raise ValueError("Model name is required for OpenAI client.")
+
+-        extra_body = {}
++        extra_body = {
++            "chat_template_kwargs": {"enable_thinking": False},
++        }
+         if self.client.base_url == DEFAULT_PRIME_INTELLECT_BASE_URL:
+             extra_body["usage"] = {"include": True}
+
+         response = self.client.chat.completions.create(
+-            model=model, messages=messages, extra_body=extra_body
++            model=model, messages=messages, extra_body=extra_body,
++            max_tokens=4096,
+         )
+         self._track_cost(response, model)
+         return response.choices[0].message.content
+@@ -83,12 +89,15 @@
+         if not model:
+             raise ValueError("Model name is required for OpenAI client.")
+
+-        extra_body = {}
++        extra_body = {
++            "chat_template_kwargs": {"enable_thinking": False},
++        }
+         if self.base_url == DEFAULT_PRIME_INTELLECT_BASE_URL:
+             extra_body["usage"] = {"include": True}
+
+         response = await self.async_client.chat.completions.create(
+-            model=model, messages=messages, extra_body=extra_body
++            model=model, messages=messages, extra_body=extra_body,
++            max_tokens=4096,
+         )
+         self._track_cost(response, model)
+         return response.choices[0].message.content
+diff -ruN a/rlm/core/rlm.py b/rlm/core/rlm.py
+--- a/rlm/core/rlm.py
++++ b/rlm/core/rlm.py
+@@ -29,6 +29,133 @@
+ from rlm.utils.rlm_utils import filter_sensitive_keys
+
+
++def _compress_iteration(assistant_msg: str, user_msg: str) -> str:
++    """Compress a single iteration (assistant code + REPL output) into a brief summary.
++
++    Extracts key state: what was done, what variables hold, key numbers.
++    Keeps ~300 chars per iteration instead of ~5-20K.
++    """
++    import re
++
++    parts = []
++
++    # 1. Extract function calls from assistant's code
++    #    e.g. "papers = search_papers(...)" → "search_papers called"
++    func_calls = re.findall(r'(\w+)\s*=\s*(\w+)\(', assistant_msg)
++    if func_calls:
++        calls = [f"{var}={func}()" for var, func in func_calls[:5]]
++        parts.append("Calls: " + ", ".join(calls))
++
++    # 2. Extract key results from REPL output
++    #    - Number of results: "50 papers", "10 chunks"
++    nums = re.findall(r'(\d+)\s+(papers?|results?|chunks?|documents?|pmids?)', user_msg, re.I)
++    if nums:
++        parts.append("Results: " + ", ".join(f"{n} {t}" for n, t in nums[:3]))
++
++    # 3. Extract print statements (often contain key findings)
++    prints = re.findall(r'print\(["\'](.{10,60}?)["\']', assistant_msg)
++    if prints:
++        parts.append("Notes: " + "; ".join(prints[:2]))
++
++    # 4. Extract variable assignments with literal values
++    #    e.g. "top_pmids = ['123', '456']" → keep as-is if short
++    assigns = re.findall(r'(\w+)\s*=\s*(\[.{5,80}\]|".{5,60}"|\'.*?\')', assistant_msg)
++    if assigns:
++        parts.append("State: " + ", ".join(f"{v}={val[:60]}" for v, val in assigns[:3]))
++
++    # 5. Extract any final answer hints
++    answer_hints = re.findall(r'(?:answer|conclusion|verdict|decision)["\s:=]+(\w+)',
++                              assistant_msg + user_msg, re.I)
++    if answer_hints:
++        parts.append(f"Hint: {answer_hints[0]}")
++
++    if not parts:
++        # Fallback: first 200 chars of assistant message
++        return assistant_msg[:200] + ("..." if len(assistant_msg) > 200 else "")
++
++    return " | ".join(parts)
++
++
++def _prune_message_history(
++    message_history: list[dict[str, Any]],
++    keep_recent: int = 2,
++    max_total_chars: int = 12000,
++) -> list[dict[str, Any]]:
++    """Prune message history to prevent unbounded context growth.
++
++    Strategy:
++    - Always keep system messages
++    - Keep last `keep_recent` iteration pairs in full detail
++    - Compress earlier iterations into structured summaries (~300 chars each)
++    - Hard cap at max_total_chars
++
++    This preserves RLM's key state (what was searched, what was found)
++    while capping context at ~3K tokens regardless of iteration count.
++    """
++    if not message_history:
++        return message_history
++
++    # Separate system messages from conversation
++    system_msgs = []
++    conv_msgs = []
++    for msg in message_history:
++        if msg.get("role") == "system":
++            system_msgs.append(msg)
++        else:
++            conv_msgs.append(msg)
++
++    total_chars = sum(len(m.get("content", "")) for m in message_history)
++    if total_chars <= max_total_chars:
++        return message_history  # No pruning needed
++
++    # Each iteration = (assistant, user) pair
++    # Group conversation messages into iteration pairs
++    iterations = []
++    i = 0
++    while i < len(conv_msgs):
++        if conv_msgs[i].get("role") == "assistant":
++            assistant = conv_msgs[i].get("content", "")
++            user = conv_msgs[i + 1].get("content", "") if i + 1 < len(conv_msgs) else ""
++            iterations.append((assistant, user))
++            i += 2
++        else:
++            # Standalone user message (e.g., the iteration prompt)
++            iterations.append(("", conv_msgs[i].get("content", "")))
++            i += 1
++
++    if len(iterations) <= keep_recent:
++        return message_history  # Not enough to prune
++
++    old_iters = iterations[:-keep_recent]
++    recent_iters = iterations[-keep_recent:]
++
++    # Compress old iterations
++    compressed_parts = []
++    for idx, (asst, user) in enumerate(old_iters, 1):
++        summary = _compress_iteration(asst, user)
++        if summary:
++            compressed_parts.append(f"[Iter {idx}] {summary}")
++
++    # Rebuild message history
++    result = list(system_msgs)
++
++    if compressed_parts:
++        result.append({
++            "role": "user",
++            "content": f"[Previous {len(compressed_parts)} iterations compressed]\n"
++                       + "\n".join(compressed_parts),
++        })
++
++    # Add recent iterations in full
++    for asst, user in recent_iters:
++        if asst:
++            result.append({"role": "assistant", "content": asst})
++        if user:
++            result.append({"role": "user", "content": user})
++
++    return result
++
++
+ class RLM:
+     """
+     Recursive Language Model class that the user instantiates and runs on their tasks.
+@@ -217,6 +344,9 @@
+                 # Update message history with the new messages.
+                 message_history.extend(new_messages)
+
++                # Prune history to prevent unbounded context growth
++                message_history = _prune_message_history(message_history)
++
+             # Default behavior: we run out of iterations, provide one final answer
+             time_end = time.perf_counter()
+             final_answer = self._default_answer(message_history, lm_handler)
+diff -ruN a/rlm/utils/parsing.py b/rlm/utils/parsing.py
+--- a/rlm/utils/parsing.py
++++ b/rlm/utils/parsing.py
+@@ -63,7 +63,7 @@
+
+
+ def format_iteration(
+-    iteration: RLMIteration, max_character_length: int = 20000
++    iteration: RLMIteration, max_character_length: int = 5000
+ ) -> list[dict[str, str]]:
+     """
+     Format an RLM iteration (including all code blocks) to append to the message history for

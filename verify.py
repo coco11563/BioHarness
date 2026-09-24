@@ -1,4 +1,12 @@
-"""Reproducibility gate for bioHarness.
+"""Package gate for the BioHarness re-implementation (``pipeline`` method).
+
+This script checks that the package is wired correctly. It does NOT verify
+the paper's numbers: this package is a re-implementation that does not
+reproduce the revised Table 1 columns (see README.md). The paper's numbers
+(Overall9 67.2 over 21,752 scored items, LitQA2 61.8 supplementary) are
+reproduced offline from the stored per-item scores by ``python verify.py``
+in the BioHarness_Eval_Framework repository; the research code that produced
+them is in ``paper_reproduction/``.
 
 Two operating modes:
 
@@ -11,12 +19,10 @@ Two operating modes:
   ``python verify.py --live``    live: runs a single end-to-end smoke item
                                   against the user-provided infrastructure
                                   (see docs/infra.md) and reports whether the
-                                  pipeline glue is wired correctly. Producing
-                                  the full 19,302-item headline numbers is not
-                                  done here: drive that through
-                                  ``framework-eval run --method pipeline ...``
-                                  and compare against the [verify.live]
-                                  tolerance band in MANIFEST.toml.
+                                  pipeline glue is wired correctly. Full
+                                  benchmark runs go through
+                                  ``framework-eval run --method pipeline ...``;
+                                  expect them to differ from Table 1.
 
 Exit codes:
     0  verification passed
@@ -164,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
         print(manifest.get("manifest_id", "unknown"))
         return 0
 
-    print(f"bioHarness verify.py — manifest {manifest['manifest_id']}")
+    print(f"BioHarness verify.py — manifest {manifest['manifest_id']}")
     print(f"  headline method ........ {manifest['headline']['method_id']}")
     print(f"  framework-eval pin ..... {manifest['framework_eval']['required_version_range']}")
 

@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name            = "bioharness"
 version         = "0.1.0"
-description     = "bioHarness headline method (registered as the ``pipeline`` framework-eval method)."
+description     = "Re-implementation of the BioHarness cascade for biomedical QA (registered as the ``pipeline`` framework-eval method)."
 readme          = "README.md"
 requires-python = ">=3.10,<3.13"
 license         = { text = "Apache-2.0" }
-authors         = [{ name = "bioHarness authors" }]
+authors         = [{ name = "BioHarness authors" }]
 keywords        = [
   "biomedical", "question-answering", "rag", "agent",
   "retrieval-augmented-generation", "cascade",
@@ -50,7 +50,7 @@ dev = [
 bioharness = "bioharness.cli:main"
 
 [project.entry-points."framework_eval.methods"]
-# Default headline method: the in-tree cascade. Self-contained.
+# Default: the in-tree re-implementation of the cascade. Self-contained.
 pipeline             = "bioharness.cascade.client:PipelineCascadeClient"
 # Full-delegation variant that wraps the upstream production cascade
 # end-to-end when BIOHARNESS_PRODUCTION_SRC points at the production
@@ -58,20 +58,21 @@ pipeline             = "bioharness.cascade.client:PipelineCascadeClient"
 pipeline-production  = "bioharness.cascade.production_client:ProductionPipelineCascadeClient"
 
 [project.urls]
-Homepage             = "https://github.com/coco11563/bioHarness"
-Repository           = "https://github.com/coco11563/bioHarness"
-Issues               = "https://github.com/coco11563/bioHarness/issues"
-EvaluationFramework  = "https://github.com/coco11563/bioharness_eval_framework"
-Dataset              = "https://huggingface.co/datasets/Shaow/GeneKnowledgeEval"
+Homepage             = "https://github.com/coco11563/BioHarness"
+Repository           = "https://github.com/coco11563/BioHarness"
+Issues               = "https://github.com/coco11563/BioHarness/issues"
+EvaluationFramework  = "https://github.com/coco11563/BioHarness_Eval_Framework"
+Dataset              = "https://huggingface.co/datasets/Shaow/BioHarness_Eval"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bioharness"]
 
 [tool.hatch.build.targets.sdist]
+# Anchored patterns: unanchored ones would also match paper_reproduction/.
 include = [
-  "src/bioharness", "tests", "docs", "scripts", "golden",
-  "MANIFEST.toml", "verify.py", "README.md", "LICENSE", "CHANGELOG.md",
-  "CITATION.cff", "CONTRIBUTING.md",
+  "/src/bioharness", "/tests", "/docs", "/scripts",
+  "/MANIFEST.toml", "/verify.py", "/README.md", "/LICENSE", "/CHANGELOG.md",
+  "/CONTRIBUTING.md",
 ]
 
 [tool.ruff]

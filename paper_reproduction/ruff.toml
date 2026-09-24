@@ -1,0 +1,11 @@
+# paper_reproduction/ is the research code (September 2026 state) behind the paper's
+# numbers, released without refactoring, so the repository's lint and format rules are not applied to it (reformatting would
+# change the released code and, inside prompt strings, the prompts themselves).
+force-exclude = true
+
+[lint]
+select = []
+exclude = ["*"]
+
+[format]
+exclude = ["*"]

@@ -1,6 +1,6 @@
 """Genomics database lookups (NCBI dbSNP + MyGene.info).
 
-Open-source equivalent of the bioHarness headline agent's genomics primitives,
+Open-source equivalent of the BioHarness headline agent's genomics primitives,
 used on GeneTuring-style structured facts that literature retrieval cannot
 answer:
 
