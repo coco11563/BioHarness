@@ -5,4 +5,4 @@ implements the framework-eval QAClient protocol and is registered as
 the `pipeline` entry point in pyproject.toml.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

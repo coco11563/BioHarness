@@ -1,0 +1,49 @@
+{
+  "title": "BioHarness",
+  "upload_type": "software",
+  "description": "Code for the BioHarness paper: the research code that produced the reported results (paper_reproduction/, with one run script per Table 1 cell) and an installable re-implementation of the BioHarness cascade as a framework-eval method plugin.",
+  "creators": [
+    {
+      "name": "Xiao, Meng"
+    },
+    {
+      "name": "Qin, Chuan"
+    },
+    {
+      "name": "Chen, Jinmiao"
+    },
+    {
+      "name": "Cheng, Yihang"
+    },
+    {
+      "name": "Zhou, Yuanchun"
+    },
+    {
+      "name": "Zhu, Hengshu"
+    }
+  ],
+  "license": "apache-2.0",
+  "keywords": [
+    "biomedical question answering",
+    "retrieval-augmented generation",
+    "LLM harness",
+    "benchmark"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "arXiv:2606.19396",
+      "relation": "isSupplementTo",
+      "scheme": "arxiv"
+    },
+    {
+      "identifier": "https://huggingface.co/datasets/Shaow/BioHarness_Eval",
+      "relation": "references",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://github.com/coco11563/BioHarness_Eval_Framework",
+      "relation": "isSupplementedBy",
+      "scheme": "url"
+    }
+  ]
+}
